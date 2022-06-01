@@ -23,7 +23,8 @@ public:
     program_node& deltas() const { return get_dependency(2); }
     program_node& scores() const { return get_dependency(3); }
 
-    program_node& output_roi_scores_node() const { return get_dependency(4); }
+    program_node& output_rois_scores_node() const { return get_dependency(4); }
+    program_node& output_rois_nums_node() const { return get_dependency(5); }
 };
 
 using generate_proposals_node = typed_program_node<generate_proposals>;
@@ -41,7 +42,8 @@ public:
             : parent(network, node)
     {}
 
-    memory::ptr output_roi_scores_memory() const { return dep_memory_ptr(4); }
+    memory::ptr output_rois_scores_memory() const { return dep_memory_ptr(4); }
+    memory::ptr output_rois_nums_memory() const { return dep_memory_ptr(5); }
 };
 
 using generate_proposals_inst = typed_primitive_inst<generate_proposals>;

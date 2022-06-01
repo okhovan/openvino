@@ -15,7 +15,7 @@ namespace cldnn {
 /// @addtogroup cpp_primitives Primitives
 /// @{
 
-/// @brief experimental detectron generate proposals single image
+/// @brief generate proposals
 struct generate_proposals
         : public primitive_base<generate_proposals> {
     CLDNN_DECLARE_PRIMITIVE(generate_proposals)

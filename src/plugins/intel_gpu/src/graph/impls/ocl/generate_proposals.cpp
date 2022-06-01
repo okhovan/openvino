@@ -6,10 +6,9 @@
 #include "primitive_base.hpp"
 #include "impls/implementation_map.hpp"
 #include "kernel_selector_helper.h"
-/*
-#include "edgpsi/generate_proposals_kernel_selector.h"
-#include "edgpsi/generate_proposals_kernel_ref.h"
-*/
+#include "generate_proposals/generate_proposals_kernel_selector.h"
+#include "generate_proposals/generate_proposals_kernel_ref.h"
+
 
 
 namespace cldnn {
@@ -25,22 +24,14 @@ struct generate_proposals_impl
 
 protected:
     kernel_arguments_data get_arguments(typed_primitive_inst<generate_proposals>& instance, int32_t) const override {
-        kernel_arguments_data args;
-        const auto num_inputs = instance.inputs_memory_count();
-        for (size_t i = 0; i < num_inputs; ++i) {
-            args.inputs.push_back(instance.input_memory_ptr(i));
-        }
-
-        args.outputs.push_back(instance.output_memory_ptr());
-
-        args.inputs.push_back(instance.output_roi_scores_memory());
-
+        auto args = parent::get_arguments(instance, 0);
+        args.inputs.push_back(instance.output_rois_scores_memory());
+        args.inputs.push_back(instance.output_rois_nums_memory());
         return args;
     }
 
 public:
     static primitive_impl* create(const generate_proposals_node& arg) {
-/*
         auto params = get_default_params<kernel_selector::generate_proposals_params>(arg);
         auto optional_params = get_default_optional_params<
                 kernel_selector::generate_proposals_optional_params>(arg.get_program());
@@ -51,12 +42,16 @@ public:
         params.nms_threshold  = primitive->nms_threshold;
         params.pre_nms_count = primitive->pre_nms_count;
         params.post_nms_count = primitive->post_nms_count;
+        params.normalized = primitive->normalized;
+        params.nms_eta = primitive->nms_eta;
+        params.roi_num_type = primitive->roi_num_type == cldnn::data_types::i32 ? kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
 
         params.inputs.push_back(convert_data_tensor(arg.anchors().get_output_layout()));
         params.inputs.push_back(convert_data_tensor(arg.deltas().get_output_layout()));
         params.inputs.push_back(convert_data_tensor(arg.scores().get_output_layout()));
 
-        params.inputs.push_back(convert_data_tensor(arg.output_roi_scores_node().get_output_layout()));
+        params.inputs.push_back(convert_data_tensor(arg.output_rois_scores_node().get_output_layout()));
+        params.inputs.push_back(convert_data_tensor(arg.output_rois_nums_node().get_output_layout()));
 
         const auto& kernel_selector = kernel_selector::generate_proposals_kernel_selector::Instance();
         const auto best_kernels = kernel_selector.GetBestKernels(params, optional_params);
@@ -67,9 +62,6 @@ public:
                          "Cannot find a proper kernel with this arguments");
 
         return new generate_proposals_impl(arg, best_kernels[0]);
-
-*/
-        return nullptr;
     }
 };
 
