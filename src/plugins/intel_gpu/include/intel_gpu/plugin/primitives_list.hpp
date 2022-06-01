@@ -231,5 +231,8 @@ REGISTER_FACTORY(v8, MaxPool);
 REGISTER_FACTORY(v8, AdaptiveAvgPool);
 REGISTER_FACTORY(v8, AdaptiveMaxPool);
 
+// ------------------------------ Supported v9 ops ------------------------------ //
+REGISTER_FACTORY(v9, GenerateProposals);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
