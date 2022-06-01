@@ -26,41 +26,59 @@ struct generate_proposals
     /// @param input_anchors anchors
     /// @param input_deltas deltas for anchors
     /// @param input_scores proposal scores
-    /// @param output_roi_scores ROI scores
+    /// @param output_rois_scores ROIs scores
+    /// @param output_rois_num number of proposed ROIs
     /// @param min_size  minimum box width and height
     /// @param nms_threshold threshold to be used in NonMaxSuppression stage
     /// @param pre_nms_count number of top-n proposals before NMS
     /// @param post_nms_count number of top-n proposals after NMS
+    /// @param normalized indicates whether proposal bboxes are normalized
+    /// @param nms_eta eta parameter for adaptive NMS
+    /// @param roi_num_type type of 3rd output elements
     generate_proposals(const primitive_id& id,
-                                                           const primitive_id& input_im_info,
-                                                           const primitive_id& input_anchors,
-                                                           const primitive_id& input_deltas,
-                                                           const primitive_id& input_scores,
-                                                           const primitive_id& output_roi_scores,
-                                                           float min_size,
-                                                           float nms_threshold,
-                                                           int64_t pre_nms_count,
-                                                           int64_t post_nms_count,
-                                                           const primitive_id& ext_prim_id = "",
-                                                           const padding& output_padding = {}) :
-            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_roi_scores}, ext_prim_id, output_padding},
-            output_roi_scores{output_roi_scores},
+                       const primitive_id& input_im_info,
+                       const primitive_id& input_anchors,
+                       const primitive_id& input_deltas,
+                       const primitive_id& input_scores,
+                       const primitive_id& output_rois_scores,
+                       const primitive_id& output_rois_num,
+                       float min_size,
+                       float nms_threshold,
+                       int64_t pre_nms_count,
+                       int64_t post_nms_count,
+                       bool normalized,
+                       float nms_eta,
+                       const data_types roi_num_type,
+                       const primitive_id& ext_prim_id = "",
+                       const padding& output_padding = {}) :
+            primitive_base{id, {input_im_info, input_anchors, input_deltas, input_scores, output_rois_scores, output_rois_num}, ext_prim_id, output_padding},
+            output_rois_scores{output_rois_scores},
+            output_rois_num{output_rois_num},
             min_size{min_size},
             nms_threshold{nms_threshold},
             pre_nms_count{pre_nms_count},
-            post_nms_count{post_nms_count} {}
+            post_nms_count{post_nms_count},
+            normalized{normalized},
+            nms_eta{nms_eta},
+            roi_num_type{roi_num_type} {}
 
-    primitive_id output_roi_scores;
+    primitive_id output_rois_scores;
+    primitive_id output_rois_num;
     float min_size;
     float nms_threshold;
     int64_t pre_nms_count;
     int64_t post_nms_count;
+    bool normalized;
+    float nms_eta;
+    data_types roi_num_type;
 
 protected:
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
-        if (!output_roi_scores.empty())
-            ret.push_back(output_roi_scores);
+        if (!output_rois_scores.empty())
+            ret.push_back(output_rois_scores);
+        if (!output_rois_num.empty())
+            ret.push_back(output_rois_num);
         return ret;
     }
 };

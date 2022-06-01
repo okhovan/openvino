@@ -177,7 +177,7 @@ const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> getInputTenso
 }
 */
 
-const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors = {
+const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> input_tensors = {
         {
                 "empty",
                 {
@@ -361,9 +361,19 @@ const std::vector<std::pair<std::string, std::vector<ov::Tensor>>> inputTensors 
         }
 };
 
+
+constexpr size_t num_batches = 2;
+constexpr size_t height = 2;
+constexpr size_t width = 6;
+constexpr size_t number_of_anchors = 3;
+//****constexpr size_t scale_height_and_width =
+
 const std::vector<std::vector<InputShape>> input_shape = {
-        // im_info / anchors / deltas / scores
-        static_shapes_to_test_representation({{2, 3}, {2, 6, 3, 4}, {2, 12, 2, 6}, {2, 3, 2, 6}}),
+        // im_info / anchors / boxesdeltas / scores
+        static_shapes_to_test_representation({{num_batches, 3},
+                                              {height, width, number_of_anchors, 4},
+                                              {num_batches, number_of_anchors * 4, height, width},
+                                              {num_batches, number_of_anchors, height, width}}),
 };
 
 INSTANTIATE_TEST_SUITE_P(
@@ -376,7 +386,7 @@ INSTANTIATE_TEST_SUITE_P(
                 ::testing::ValuesIn(post_nms_count),
                 ::testing::ValuesIn(pre_nms_count),
 //                ::testing::ValuesIn(getInputTensors<float>()),
-                ::testing::ValuesIn(inputTensors),
+                ::testing::ValuesIn(input_tensors),
                 ::testing::ValuesIn({ov::element::Type_t::f32}),
                 ::testing::ValuesIn({ov::element::Type_t::i32}),
                 ::testing::Values(CommonTestUtils::DEVICE_GPU)),
