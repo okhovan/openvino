@@ -117,12 +117,38 @@ void shape_infer(const GenerateProposals* op,
                               scores_shape[1]);
     }
 
-    output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});
-    output_shapes[1] = ov::PartialShape::dynamic(1);
-    if (im_info_shape_rank.is_static()) {
-        output_shapes[2] = ov::PartialShape({im_info_shape[0]});
+    const bool input_is_static = std::accumulate(input_shapes.begin(), input_shapes.end(), true,
+                                                 [](bool b, const T& shape) { return b && shape.is_static(); });
+    if (input_is_static)
+    {
+        const auto post_nms_count = static_cast<Dimension::value_type>(op->get_attrs().post_nms_count);
+        const auto num_batches = im_info_shape[0];
+
+        output_shapes[0] = ov::PartialShape({num_batches * post_nms_count, 4});
+        output_shapes[1] = ov::PartialShape({num_batches * post_nms_count});
+        output_shapes[2] = ov::PartialShape({num_batches});
+/*
+        auto& rois_shape = output_shapes[0];
+        rois_shape.resize(2);
+        rois_shape[0] = num_batches * post_nms_count;
+        rois_shape[1] = 4;
+
+        auto& rois_scores_shape = output_shapes[1];
+        rois_scores_shape.resize(1);
+        rois_scores_shape[0] = num_batches * post_nms_count;
+
+        auto& rois_nums_shape = output_shapes[2];
+        rois_nums_shape.resize(1);
+        rois_nums_shape[0] = num_batches;
+*/
     } else {
-        output_shapes[2] = ov::PartialShape::dynamic(1);
+        output_shapes[0] = ov::PartialShape({Dimension::dynamic(), 4});
+        output_shapes[1] = ov::PartialShape::dynamic(1);
+        if (im_info_shape_rank.is_static()) {
+            output_shapes[2] = ov::PartialShape({im_info_shape[0]});
+        } else {
+            output_shapes[2] = ov::PartialShape::dynamic(1);
+        }
     }
 }
 
