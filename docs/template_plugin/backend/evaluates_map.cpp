@@ -3628,10 +3628,18 @@ bool evaluate(const shared_ptr<op::v9::GenerateProposals>& op,
                                            output_scores,
                                            output_num);
 
-    uint64_t num_selected = static_cast<uint64_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
+    const uint64_t num_selected = static_cast<uint64_t>(std::accumulate(output_num.begin(), output_num.end(), 0));
+    uint64_t output_size = num_selected;
+    if (attrs.static_output) {
+        output_size = outputs[0]->get_partial_shape()[0].get_length();
+        if (num_selected < output_size) {
+            output_scores.insert(output_scores.end(), output_size - num_selected, 0.0f);
+            output_rois.insert(output_rois.end(), (output_size - num_selected) * 4, 0.0f);
+        }
+    }
 
-    Shape output_rois_shape = Shape{num_selected, 4};
-    Shape output_scores_shape = Shape{num_selected};
+    Shape output_rois_shape = Shape{output_size, 4};
+    Shape output_scores_shape = Shape{output_size};
 
     outputs[0]->set_element_type(output_type);
     outputs[0]->set_shape(output_rois_shape);
