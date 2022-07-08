@@ -81,8 +81,6 @@ void GenerateProposalsLayerTest::SetUp() {
     inType = outType = netPrecision;
     targetDevice = targetName;
     if (targetDevice == CommonTestUtils::DEVICE_GPU) {
-        attributes.static_output = true;
-
         if (netPrecision == element::Type_t::f16) {
             abs_threshold = 0.2;
         } else {

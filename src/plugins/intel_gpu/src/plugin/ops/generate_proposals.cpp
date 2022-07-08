@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "ngraph/op/generate_proposals.hpp"
+#include <ngraph_ops/generate_proposals_ie_internal.hpp>
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program.hpp"
@@ -13,7 +13,7 @@ namespace ov {
 namespace runtime {
 namespace intel_gpu {
 
-static void CreateGenerateProposalsOp(Program& p, const std::shared_ptr<ngraph::op::v9::GenerateProposals>& op) {
+static void CreateGenerateProposalsIEInternalOp(Program& p, const std::shared_ptr<ngraph::op::internal::GenerateProposalsIEInternal>& op) {
     p.ValidateInputs(op, {4});
     if (op->get_output_size() != 3) {
         IE_THROW() << "GenerateProposals requires 3 outputs";
@@ -76,7 +76,7 @@ static void CreateGenerateProposalsOp(Program& p, const std::shared_ptr<ngraph::
     p.AddPrimitiveToProfiler(prim, op);
 }
 
-REGISTER_FACTORY_IMPL(v9, GenerateProposals);
+REGISTER_FACTORY_IMPL(internal, GenerateProposalsIEInternal);
 
 }  // namespace intel_gpu
 }  // namespace runtime

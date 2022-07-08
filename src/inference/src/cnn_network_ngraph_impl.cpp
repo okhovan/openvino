@@ -41,6 +41,7 @@
 #include <transformations/op_conversions/convert_matrix_nms_to_matrix_nms_ie.hpp>
 #include <transformations/op_conversions/convert_multiclass_nms_to_multiclass_nms_ie.hpp>
 #include <transformations/op_conversions/convert_nms9_to_nms_ie_internal.hpp>
+#include <transformations/op_conversions/convert_gp9_to_gp_ie_internal.hpp>
 
 #include "exec_graph_info.hpp"
 #include "ie_itt.hpp"
@@ -458,6 +459,7 @@ void CNNNetworkNGraphImpl::reshape(const std::map<std::string, ngraph::PartialSh
                 manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>(false);
                 manager.register_pass<::ngraph::pass::ConvertMatrixNmsToMatrixNmsIE>(false);
                 manager.register_pass<::ngraph::pass::ConvertNMS9ToNMSIEInternal>();
+                manager.register_pass<::ngraph::pass::ConvertGP9ToGPIEInternal>();
                 manager.register_pass<::ngraph::pass::DisableConvertConstantFoldingOnConstPath>();
                 manager.register_pass<::ov::pass::DisableDecompressionConvertConstantFolding>();
                 manager.register_pass<::ngraph::pass::ConstantFolding>();

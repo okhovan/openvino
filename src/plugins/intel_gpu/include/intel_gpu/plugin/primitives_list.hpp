@@ -233,7 +233,6 @@ REGISTER_FACTORY(v8, AdaptiveMaxPool);
 
 // ------------------------------ Supported v9 ops ------------------------------ //
 REGISTER_FACTORY(v9, SoftSign)
-REGISTER_FACTORY(v9, GenerateProposals);
-
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
+REGISTER_FACTORY(internal, GenerateProposalsIEInternal);
