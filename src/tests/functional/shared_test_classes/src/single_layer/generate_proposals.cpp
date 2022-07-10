@@ -120,6 +120,32 @@ void GenerateProposalsLayerTest::generate_inputs(const std::vector<ngraph::Shape
     }
 }
 
+void GenerateProposalsLayerTest::compare(const std::vector<ov::Tensor> &expected, const std::vector<ov::Tensor> &actual) {
+    if (targetDevice != CommonTestUtils::DEVICE_GPU) {
+        SubgraphBaseTest::compare(expected, actual);
+        return;
+    }
+
+    ASSERT_EQ(expected.size(), actual.size());
+    ASSERT_EQ(expected.size(), function->get_results().size());
+
+    for (int i = 0; i < expected.size(); ++i) {
+        std::cout << "output " << i << "\n" << std::setprecision(8);
+        for (size_t j = 0; j < shape_size(expected[i].get_shape()); j++) {
+            double expected_value, actual_value;
+            if (outType == element::Type_t::f16) {
+                expected_value = expected[i].data<float16>()[j];
+                actual_value = actual[i].data<float16>()[j];
+            } else {
+                expected_value = expected[i].data<float>()[j];
+                actual_value = actual[i].data<float>()[j];
+            }
+            std::cout << j <<":   " << expected_value << "   " << actual_value << "\n";
+            EXPECT_EQ(expected_value, actual_value);
+        }
+    }
+}
+
 } // namespace subgraph
 } // namespace test
 } // namespace ov
