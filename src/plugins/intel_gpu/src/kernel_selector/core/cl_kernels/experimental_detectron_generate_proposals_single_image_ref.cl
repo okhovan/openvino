@@ -289,17 +289,17 @@ KERNEL(edgpsi_ref_stage_3)
     const uint rois_offset = i * 4;
 
     if (i < *num_outputs) {
-        rois[rois_offset + 0] = boxes[box_offset + 0];
-        rois[rois_offset + 1] = boxes[box_offset + 1];
-        rois[rois_offset + 2] = boxes[box_offset + 2];
-        rois[rois_offset + 3] = boxes[box_offset + 3];
-        roi_scores[i] = boxes[box_offset + 4];
+        rois[OUTPUT_GET_INDEX(i, 0, 0, 0)] = boxes[box_offset + 0];
+        rois[OUTPUT_GET_INDEX(i, 1, 0, 0)] = boxes[box_offset + 1];
+        rois[OUTPUT_GET_INDEX(i, 2, 0, 0)] = boxes[box_offset + 2];
+        rois[OUTPUT_GET_INDEX(i, 3, 0, 0)] = boxes[box_offset + 3];
+        roi_scores[INPUT4_GET_INDEX(i, 0, 0, 0)] = boxes[box_offset + 4];
     } else {
-        rois[rois_offset + 0] = 0.0f;
-        rois[rois_offset + 1] = 0.0f;
-        rois[rois_offset + 2] = 0.0f;
-        rois[rois_offset + 3] = 0.0f;
-        roi_scores[i] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 0, 0, 0)] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 1, 0, 0)] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 2, 0, 0)] = 0.0f;
+        rois[OUTPUT_GET_INDEX(i, 3, 0, 0)] = 0.0f;
+        roi_scores[INPUT4_GET_INDEX(i, 0, 0, 0)] = 0.0f;
     }
 }
 #endif /* EDGPSI_STAGE_3 */
