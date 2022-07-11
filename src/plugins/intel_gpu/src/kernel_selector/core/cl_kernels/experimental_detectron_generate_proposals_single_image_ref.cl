@@ -34,10 +34,26 @@ KERNEL(edgpsi_ref_stage_0)
     const uint score_idx = offset + BOTTOM_AREA * anchor;
     const uint delta_idx = offset + BOTTOM_AREA * anchor * 4;
 
+
+    const uint idx0 = INPUT1_GET_INDEX(0, 0, anchor_idx, 0);
+    const uint idx1 = INPUT1_GET_INDEX(0, 0, anchor_idx, 1);
+    const uint idx2 = INPUT1_GET_INDEX(0, 0, anchor_idx, 2);
+    const uint idx3 = INPUT1_GET_INDEX(0, 0, anchor_idx, 3);
+
+//    printf("h=%d w=%d anchor=%d anchor_idx=%d idx0=%d idx1=%d idx2=%d idx3=%d\n", h, w, anchor, anchor_idx,
+//           idx0, idx1, idx2, idx3);
+
+    INPUT0_TYPE x0 = anchors[idx0];
+    INPUT0_TYPE y0 = anchors[idx1];
+    INPUT0_TYPE x1 = anchors[idx2];
+    INPUT0_TYPE y1 = anchors[idx3];
+
+/*
     INPUT0_TYPE x0 = anchors[anchor_idx + 0];
     INPUT0_TYPE y0 = anchors[anchor_idx + 1];
     INPUT0_TYPE x1 = anchors[anchor_idx + 2];
     INPUT0_TYPE y1 = anchors[anchor_idx + 3];
+*/
 
     const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(anchor * 4 + 0 , h, w, 0)];
     const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(anchor * 4 + 1 , h , w, 0)];
@@ -54,9 +70,8 @@ KERNEL(edgpsi_ref_stage_0)
 /*
     const INPUT0_TYPE score = scores[score_idx];
 */
-    const uint idx3 = INPUT3_GET_INDEX(anchor, h, w, 0);
-    printf("h=%d w=%d anchor=%d score_idx=%d idx=%d\n", h, w, anchor, score_idx, idx3);
-    const INPUT0_TYPE score = scores[idx3];
+    //printf("h=%d w=%d anchor=%d score_idx=%d idx=%d\n", h, w, anchor, score_idx, idx3);
+    const INPUT0_TYPE score = scores[INPUT3_GET_INDEX(anchor, h, w, 0)];
 
     // width & height of box
     const INPUT0_TYPE ww = x1 - x0 + COORDINATES_OFFSET;
