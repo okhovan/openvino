@@ -39,17 +39,17 @@ KERNEL(edgpsi_ref_stage_0)
     INPUT0_TYPE x1 = anchors[anchor_idx + 2];
     INPUT0_TYPE y1 = anchors[anchor_idx + 3];
 
-/*
-    const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(anchor * 4 + 0 , 0, h, w)];
-    const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(anchor * 4 + 1 , 0, h , w)];
-    const INPUT0_TYPE d_log_w = deltas[INPUT2_GET_INDEX(anchor * 4 + 2 , 0, h, w)];
-    const INPUT0_TYPE d_log_h = deltas[INPUT2_GET_INDEX(anchor * 4 + 3 , 0, h, w)];
-*/
+    const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(anchor * 4 + 0 , h, w, 0)];
+    const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(anchor * 4 + 1 , h , w, 0)];
+    const INPUT0_TYPE d_log_w = deltas[INPUT2_GET_INDEX(anchor * 4 + 2 , h, w, 0)];
+    const INPUT0_TYPE d_log_h = deltas[INPUT2_GET_INDEX(anchor * 4 + 3 , h, w, 0)];
 
+/*
     const INPUT0_TYPE dx = deltas[delta_idx + 0 * BOTTOM_AREA];
     const INPUT0_TYPE dy = deltas[delta_idx + 1 * BOTTOM_AREA];
     const INPUT0_TYPE d_log_w = deltas[delta_idx + 2 * BOTTOM_AREA];
     const INPUT0_TYPE d_log_h = deltas[delta_idx + 3 * BOTTOM_AREA];
+*/
 
 /*
     const INPUT0_TYPE score = scores[score_idx];
