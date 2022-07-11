@@ -21,8 +21,8 @@ KERNEL(edgpsi_ref_stage_0)
  const __global INPUT0_TYPE* deltas,
  const __global INPUT0_TYPE* scores,
  __global INPUT0_TYPE* proposals) {
-    const INPUT0_TYPE img_H = im_info[0];
-    const INPUT0_TYPE img_W = im_info[1];
+    const INPUT0_TYPE img_H = im_info[INPUT0_GET_INDEX(0, 0, 0, 0)];
+    const INPUT0_TYPE img_W = im_info[INPUT0_GET_INDEX(0, 0, 0, 1)];
 
     const uint h = get_global_id(0);
     const uint w = get_global_id(1);
@@ -39,12 +39,24 @@ KERNEL(edgpsi_ref_stage_0)
     INPUT0_TYPE x1 = anchors[anchor_idx + 2];
     INPUT0_TYPE y1 = anchors[anchor_idx + 3];
 
+/*
+    const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(anchor * 4 + 0 , 0, h, w)];
+    const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(anchor * 4 + 1 , 0, h , w)];
+    const INPUT0_TYPE d_log_w = deltas[INPUT2_GET_INDEX(anchor * 4 + 2 , 0, h, w)];
+    const INPUT0_TYPE d_log_h = deltas[INPUT2_GET_INDEX(anchor * 4 + 3 , 0, h, w)];
+*/
+
     const INPUT0_TYPE dx = deltas[delta_idx + 0 * BOTTOM_AREA];
     const INPUT0_TYPE dy = deltas[delta_idx + 1 * BOTTOM_AREA];
     const INPUT0_TYPE d_log_w = deltas[delta_idx + 2 * BOTTOM_AREA];
     const INPUT0_TYPE d_log_h = deltas[delta_idx + 3 * BOTTOM_AREA];
 
+/*
     const INPUT0_TYPE score = scores[score_idx];
+*/
+    const uint idx3 = INPUT3_GET_INDEX(anchor, h, w, 0);
+    printf("h=%d w=%d anchor=%d score_idx=%d idx=%d\n", h, w, anchor, score_idx, idx3);
+    const INPUT0_TYPE score = scores[idx3];
 
     // width & height of box
     const INPUT0_TYPE ww = x1 - x0 + COORDINATES_OFFSET;
