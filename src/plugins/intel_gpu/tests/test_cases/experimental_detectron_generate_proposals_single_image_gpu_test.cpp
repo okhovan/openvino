@@ -148,6 +148,23 @@ std::vector<ExperimentalDetectronGenerateProposalsSingleImageParams<T>> getExper
     };
     return params;
 }
+
+struct PrintToStringParamName {
+    template<class T>
+    std::string operator()(const testing::TestParamInfo<ExperimentalDetectronGenerateProposalsSingleImageParamsWithLayout<T> > &param) {
+        std::stringstream buf;
+        ExperimentalDetectronGenerateProposalsSingleImageParams<T> p;
+        format::type layout;
+        std::tie(p, layout) = param.param;
+
+        buf << "min_size=" << p.min_size << "_";
+        buf << "nms_threshold=" << p.nms_threshold << "_";
+        buf << "pre_nms_count=" << p.pre_nms_count << "_";
+        buf << "post_nms_count=" << p.post_nms_count << "_";
+        buf << "layout=" << layout;
+        return buf.str();
+    }
+};
 };  // namespace
 
 template <typename T>
@@ -273,7 +290,8 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<float>()),
                 ::testing::ValuesIn(layouts)
-        )
+        ),
+        PrintToStringParamName()
 );
 
 using experimental_detectron_generate_proposals_single_image_test_f16 = experimental_detectron_generate_proposals_single_image_test<half_t>;
@@ -286,6 +304,7 @@ INSTANTIATE_TEST_SUITE_P(
         ::testing::Combine(
                 ::testing::ValuesIn(getExperimentalDetectronGenerateProposalsSingleImageParams<half_t>()),
                 ::testing::ValuesIn(layouts)
-        )
+        ),
+        PrintToStringParamName()
 );
 
