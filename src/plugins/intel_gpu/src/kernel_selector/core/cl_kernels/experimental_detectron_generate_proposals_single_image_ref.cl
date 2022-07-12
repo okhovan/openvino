@@ -4,15 +4,15 @@
 
 #if INPUT0_TYPE_SIZE == 2 //f16
 #define HALF_ONE 0.5h
-#define ZERO 0.0h
 #else
 #define HALF_ONE 0.5f
-#define ZERO 0.0f
 #endif
+
+#define ZERO INPUT0_VAL_ZERO
 
 #ifdef EDGPSI_STAGE_0
 
-#    define COORDINATES_OFFSET 1
+#define COORDINATES_OFFSET INPUT0_VAL_ONE
 
 // 0. Refine anchors
 KERNEL(edgpsi_ref_stage_0)
