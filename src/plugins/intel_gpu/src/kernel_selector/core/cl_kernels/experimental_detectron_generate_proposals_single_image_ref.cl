@@ -28,72 +28,18 @@ KERNEL(edgpsi_ref_stage_0)
     const uint w = get_global_id(1);
     const uint anchor = get_global_id(2);
 
-    const bool debug = h==0 && w==0 && anchor==0;
+    const uint anchor_idx = (h * BOTTOM_W + w) * ANCHORS_NUM + anchor;
 
-    if (debug) {
-        printf("img_H=%f img_W=%f\n", img_H, img_W);
-    }
-    const uint offset = h * BOTTOM_W + w;
-    const uint anchor_idx = (offset * ANCHORS_NUM + anchor) * 4;
-    const uint proposal_idx = (offset * ANCHORS_NUM + anchor) * 5;
-    const uint score_idx = offset + BOTTOM_AREA * anchor;
-    const uint delta_idx = offset + BOTTOM_AREA * anchor * 4;
-
-    const uint anchor_num = anchor + ANCHORS_NUM * w + ANCHORS_NUM * BOTTOM_W * h;
-
-    const uint idx0 = INPUT1_GET_INDEX(anchor_num, 0, 0, 0);
-    const uint idx1 = INPUT1_GET_INDEX(anchor_num, 1, 0, 0);
-    const uint idx2 = INPUT1_GET_INDEX(anchor_num, 2, 0, 0);
-    const uint idx3 = INPUT1_GET_INDEX(anchor_num, 3, 0, 0);
-
-//    printf("h=%d w=%d anchor=%d anchor_num=%d idx0=%d idx1=%d idx2=%d idx3=%d\n", h, w, anchor, anchor_num,
-//           idx0, idx1, idx2, idx3);
-
-    INPUT0_TYPE x0 = anchors[idx0];
-    INPUT0_TYPE y0 = anchors[idx1];
-    INPUT0_TYPE x1 = anchors[idx2];
-    INPUT0_TYPE y1 = anchors[idx3];
-
-//    INPUT0_TYPE x0 = anchors[anchor_idx + 0];
-//    INPUT0_TYPE y0 = anchors[anchor_idx + 1];
-//    INPUT0_TYPE x1 = anchors[anchor_idx + 2];
-//    INPUT0_TYPE y1 = anchors[anchor_idx + 3];
-
-/*
-    printf("h=%d w=%d anchor=%d anchor_num=%d x0=%f y0=%f x1=%f y1=%f\n", h, w, anchor, anchor_num,
-           x0, y0, x1, y1);
-    if (debug) {
-        printf("INPUT1_BATCH_NUM=%d INPUT1_FEATURE_NUM=%d\n", INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM);
-        for(uint i = 0; i < 16 * INPUT1_LENGTH; ++i) {
-            printf("%f ", anchors[i]);
-        }
-        printf("\n");
-    }
-*/
-
-/*
-    INPUT0_TYPE x0 = anchors[anchor_idx + 0];
-    INPUT0_TYPE y0 = anchors[anchor_idx + 1];
-    INPUT0_TYPE x1 = anchors[anchor_idx + 2];
-    INPUT0_TYPE y1 = anchors[anchor_idx + 3];
-*/
+    INPUT0_TYPE x0 = anchors[INPUT1_GET_INDEX(anchor_idx, 0, 0, 0)];
+    INPUT0_TYPE y0 = anchors[INPUT1_GET_INDEX(anchor_idx, 1, 0, 0)];
+    INPUT0_TYPE x1 = anchors[INPUT1_GET_INDEX(anchor_idx, 2, 0, 0)];
+    INPUT0_TYPE y1 = anchors[INPUT1_GET_INDEX(anchor_idx, 3, 0, 0)];
 
     const INPUT0_TYPE dx = deltas[INPUT2_GET_INDEX(anchor * 4 + 0 , h, w, 0)];
     const INPUT0_TYPE dy = deltas[INPUT2_GET_INDEX(anchor * 4 + 1 , h , w, 0)];
     const INPUT0_TYPE d_log_w = deltas[INPUT2_GET_INDEX(anchor * 4 + 2 , h, w, 0)];
     const INPUT0_TYPE d_log_h = deltas[INPUT2_GET_INDEX(anchor * 4 + 3 , h, w, 0)];
 
-/*
-    const INPUT0_TYPE dx = deltas[delta_idx + 0 * BOTTOM_AREA];
-    const INPUT0_TYPE dy = deltas[delta_idx + 1 * BOTTOM_AREA];
-    const INPUT0_TYPE d_log_w = deltas[delta_idx + 2 * BOTTOM_AREA];
-    const INPUT0_TYPE d_log_h = deltas[delta_idx + 3 * BOTTOM_AREA];
-*/
-
-/*
-    const INPUT0_TYPE score = scores[score_idx];
-*/
-    //printf("h=%d w=%d anchor=%d score_idx=%d idx=%d\n", h, w, anchor, score_idx, idx3);
     const INPUT0_TYPE score = scores[INPUT3_GET_INDEX(anchor, h, w, 0)];
 
     // width & height of box
@@ -127,6 +73,7 @@ KERNEL(edgpsi_ref_stage_0)
     const INPUT0_TYPE box_w = x1 - x0 + COORDINATES_OFFSET;
     const INPUT0_TYPE box_h = y1 - y0 + COORDINATES_OFFSET;
 
+    const uint proposal_idx = anchor_idx * 5;
     proposals[proposal_idx + 0] = x0;
     proposals[proposal_idx + 1] = y0;
     proposals[proposal_idx + 2] = x1;
@@ -310,23 +257,6 @@ KERNEL(edgpsi_ref_stage_3)
     const uint index = out_indices[i];
     const uint box_offset = index * 5;
     const uint rois_offset = i * 4;
-
-    const bool debug = i==0;
-    if (debug) {
-        printf("num_outputs=%d\n", *num_outputs);
-
-        for (uint j = 0; j < OUTPUT_BATCH_NUM; ++j) {
-            printf("out_indices[%d]=%d\n", j, out_indices[j]);
-            const uint index = out_indices[j];
-            const uint box_offset = index * 5;
-            printf("box %f %f %f %f %f\n",
-                     boxes[box_offset + 0],
-                     boxes[box_offset + 1],
-                     boxes[box_offset + 2],
-                     boxes[box_offset + 3],
-                     boxes[box_offset + 4]);
-        }
-    }
 
     if (i < *num_outputs) {
         rois[OUTPUT_GET_INDEX(i, 0, 0, 0)] = boxes[box_offset + 0];
