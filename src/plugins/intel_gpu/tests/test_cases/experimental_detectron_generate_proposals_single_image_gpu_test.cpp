@@ -276,7 +276,6 @@ INSTANTIATE_TEST_SUITE_P(
         )
 );
 
-/*
 using experimental_detectron_generate_proposals_single_image_test_f16 = experimental_detectron_generate_proposals_single_image_test<half_t>;
 TEST_P(experimental_detectron_generate_proposals_single_image_test_f16, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
@@ -290,4 +289,3 @@ INSTANTIATE_TEST_SUITE_P(
         )
 );
 
-*/
