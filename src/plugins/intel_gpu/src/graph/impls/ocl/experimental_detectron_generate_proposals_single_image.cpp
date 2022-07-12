@@ -72,7 +72,18 @@ attach_experimental_detectron_generate_proposals_single_image_impl::attach_exper
     implementation_map<experimental_detectron_generate_proposals_single_image>::add(impl_types::ocl,
                                                                                     experimental_detectron_generate_proposals_single_image_impl::create, {
                                                  std::make_tuple(data_types::f16, format::bfyx),
-                                                 std::make_tuple(data_types::f32, format::bfyx)
+                                                 std::make_tuple(data_types::f16, format::b_fs_yx_fsv16),
+                                                 std::make_tuple(data_types::f16, format::b_fs_yx_fsv32),
+                                                 std::make_tuple(data_types::f16, format::bs_fs_yx_bsv16_fsv16),
+                                                 std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv16),
+                                                 std::make_tuple(data_types::f16, format::bs_fs_yx_bsv32_fsv32),
+
+                                                 std::make_tuple(data_types::f32, format::bfyx),
+                                                 std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+                                                 std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+                                                 std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+                                                 std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+                                                 std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32)
                                          });
 }
 }  // namespace detail

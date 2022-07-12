@@ -17,9 +17,9 @@ primitive_type_id experimental_detectron_generate_proposals_single_image::type_i
 layout experimental_detectron_generate_proposals_single_image_inst::calc_output_layout(
         const experimental_detectron_generate_proposals_single_image_node& node) {
     const layout data_layout = node.input().get_output_layout();
-    auto desc = node.get_primitive();
+    const auto desc = node.get_primitive();
 
-    return layout(data_layout.data_type, format::bfyx, {static_cast<int>(desc->post_nms_count), 4, 1, 1});
+    return layout(data_layout.data_type, data_layout.format, {static_cast<int>(desc->post_nms_count), 4, 1, 1});
 }
 
 std::string experimental_detectron_generate_proposals_single_image_inst::to_string(
