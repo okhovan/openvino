@@ -176,81 +176,6 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, values_batch_wise) {
     compare_out_buffer_with_expected_batch_wise();
 }
 
-TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
-    //  Input  : 2x3x2x2
-    static const int32_t x_size = 2, y_size = 2, feature_num = 3,
-        batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
-    auto& engine = get_test_engine();
-
-    auto input = engine.allocate_memory({ data_types::f32, format::bfyx,{ batch_num, feature_num, x_size , y_size } });
-    topology topology;
-    topology.add(input_layout("input", input->get_layout()));
-    topology.add(softmax("softmax", "input"));
-
-    set_values(input, {  //bfyx
-             //y0x0  y0x1   y1x0    y1x1
-        /*b0f0*/0.1f, -0.1f, 0.9f,  1.5f,
-        /*b0f1*/0.2f, 0.2f,  -10.f, 5.2f,
-        /*b1f2*/0.2f, 0.2f,  -10.f, 5.2f,
-        /*b1f0*/3.f,  0.5f,  7.f,   12.f,
-        /*b1f1*/4.f,  0.5f,  8.f,   8.2f,
-        /*b1f2*/0.2f, 0.2f,  -10.f, 5.2f
-    });
-
-    float expected_max_values[2] = {
-        0.481618381f, 0.953259517f
-    };
-
-    build_options bo;
-    bo.set_option(build_option::optimize_data(false));
-    network network(engine, topology, bo);
-
-    network.set_input_data("input", input);
-    auto outputs = network.execute();
-
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
-
-    auto output = outputs.at("softmax").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-    float out_buffer[buf_size];
-    for (uint32_t i = 0; i < buf_size; i++)
-    {
-        out_buffer[i] = output_ptr[i];
-    }
-
-    float sum = 0;
-    float expected_sum = 1.0f;
-
-    float temp_max = 0;
-    int max_value_buffer_index = 0;
-
-    for (uint32_t i = 0; i < batch_num; i++) //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
-    {
-        for (uint32_t j = 0; j < y_size; j++)
-        {
-            for (uint32_t k = 0; k < x_size; k++)
-            {
-                for (uint32_t l = 0; l < feature_num; l++)
-                {
-                    int index = i * feature_num * x_size * y_size + j * x_size + k + l * x_size * y_size;
-                    sum += out_buffer[index];
-                    if (out_buffer[index] >= temp_max)
-                    {
-                        temp_max = out_buffer[index];
-                    }
-                }
-            }
-        }
-
-        EXPECT_EQ(true, are_equal(sum, expected_sum));
-        sum = 0.0f;
-        EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
-        temp_max = 0;
-        max_value_buffer_index++;
-    }
-}
-
 namespace {
 const std::vector<format::type> formats2D{
         format::bfyx,
@@ -268,12 +193,90 @@ const std::vector<format::type> formats3D{
 };
 };  // namespace
 
+TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
+    //  Input  : 2x3x2x2
+    static const int32_t x_size = 2, y_size = 2, feature_num = 3,
+        batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
+    // TBD FlattenFeatureAndSpatials()
+    for (const auto data_format : formats2D) {
+//std::cout << "DEBUG " << data_format << std::endl;
+        auto &engine = get_test_engine();
+
+        auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reordered_input", "input", data_format, data_types::f32));
+        topology.add(softmax("blocked_softmax", "reordered_input"));
+        topology.add(reorder("softmax", "blocked_softmax", format::bfyx, data_types::f32));
+
+        set_values(input, {  //bfyx
+                //y0x0  y0x1   y1x0    y1x1
+                /*b0f0*/0.1f, -0.1f, 0.9f, 1.5f,
+                /*b0f1*/0.2f, 0.2f, -10.f, 5.2f,
+                /*b1f2*/0.2f, 0.2f, -10.f, 5.2f,
+                /*b1f0*/3.f, 0.5f, 7.f, 12.f,
+                /*b1f1*/4.f, 0.5f, 8.f, 8.2f,
+                /*b1f2*/0.2f, 0.2f, -10.f, 5.2f
+        });
+
+        float expected_max_values[2] = {
+                0.481618381f, 0.953259517f
+        };
+
+        build_options bo;
+        bo.set_option(build_option::optimize_data(false));
+        network network(engine, topology, bo);
+
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "softmax");
+
+        auto output = outputs.at("softmax").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        float out_buffer[buf_size];
+        for (uint32_t i = 0; i < buf_size; i++) {
+            out_buffer[i] = output_ptr[i];
+        }
+
+        float sum = 0;
+        float expected_sum = 1.0f;
+
+        float temp_max = 0;
+        int max_value_buffer_index = 0;
+
+        for (uint32_t i = 0;
+             i < batch_num; i++) //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
+        {
+            for (uint32_t j = 0; j < y_size; j++) {
+                for (uint32_t k = 0; k < x_size; k++) {
+                    for (uint32_t l = 0; l < feature_num; l++) {
+                        int index = i * feature_num * x_size * y_size + j * x_size + k + l * x_size * y_size;
+                        sum += out_buffer[index];
+                        if (out_buffer[index] >= temp_max) {
+                            temp_max = out_buffer[index];
+                        }
+                    }
+                }
+            }
+
+            EXPECT_EQ(true, are_equal(sum, expected_sum));
+            sum = 0.0f;
+            EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+            temp_max = 0;
+            max_value_buffer_index++;
+        }
+    }
+}
+
 TEST(softmax_gpu_bfyx_f32, normalize_y) {
     //  Input  : 2x3x2x2
     static const int32_t x_size = 2, y_size = 2, feature_num = 3,
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
 
     for (const auto data_format : formats2D) {
+//std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
@@ -465,7 +468,9 @@ TEST(softmax_gpu_yxfb_f32, normalize_f) {
     static const int32_t x_size = 1, y_size = 2, feature_num = 1,
         batch_num = 12, buf_size = x_size*y_size * batch_num * feature_num;
 
+    // TBD FlattenFeatureAndSpatials()
     for (const auto data_format : formats2D) {
+//std::cout << "DEBUG " << data_format << std::endl;
 
         auto &engine = get_test_engine();
 
@@ -641,6 +646,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_all) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 3,
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
     for (const auto data_format : formats2D) {
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
@@ -685,6 +691,7 @@ TEST(softmax_gpu_yxfb_f32, normalize_all) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 3,
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
     for (const auto data_format : formats2D) {
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f32, format::yxfb, {y_size, x_size, feature_num, batch_num}});
@@ -729,6 +736,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_all) {
     static const int32_t x_size = 2, y_size = 2, z_size = 2, feature_num = 3,
                          batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
     for (const auto data_format : formats3D) {
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory(
@@ -775,6 +783,7 @@ TEST(softmax_gpu_bfyx_f16, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
 
     for (const auto data_format : formats2D) {
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
@@ -819,6 +828,7 @@ TEST(softmax_gpu_yxfb_f16, normalize_all) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 3,
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
     for (const auto data_format : formats2D) {
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f16, format::yxfb, {y_size, x_size, feature_num, batch_num}});
@@ -863,6 +873,7 @@ TEST(softmax_gpu_bfzyx_f16, normalize_all) {
     static const int32_t x_size = 2, y_size = 2, z_size = 2, feature_num = 3,
                          batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
     for (const auto data_format : formats3D) {
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory(

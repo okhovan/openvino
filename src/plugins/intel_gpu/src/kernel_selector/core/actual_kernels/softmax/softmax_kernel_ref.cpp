@@ -6,31 +6,7 @@
 #include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-ParamsKey SoftmaxKernelRef::GetSupportedKey() const {
-    ParamsKey k = GetDefaultSupportedKey();
-
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
-    k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv16_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-    k.EnableOutputLayout(DataLayout::bs_fs_yx_bsv32_fsv32);
-
-    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
-    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
-    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
-
-/*
-    k.EnableAllInputLayout();
-    k.EnableAllOutputLayout();
-*/
-    return k;
-}
+ParamsKey SoftmaxKernelRef::GetSupportedKey() const { return GetDefaultSupportedKey(); }
 
 SoftmaxKernelRef::Parent::DispatchData SoftmaxKernelRef::SetDefault(const softmax_params& params,
                                                                     const optional_params& optParams) const {
