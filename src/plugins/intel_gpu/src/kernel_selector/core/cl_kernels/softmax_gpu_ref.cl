@@ -32,9 +32,17 @@ KERNEL(softmax)(
     for (uint cls = 0; cls < INPUT0_CLASS_NUM; ++cls)
     {
         const uint index = in_depth_offset + cls*INPUT0_CLASS_PITCH;
-        ACCUMULATOR_TYPE in = input[index];
+#if INPUT0_DIMS == 5
+        const uint new_index = INPUT0_GET_INDEX(other3, other1, other2, other0, cls*INPUT0_CLASS_PITCH);
+#else
+        const uint new_index = INPUT0_GET_INDEX(other3, other1, other2, other0 + cls*INPUT0_CLASS_PITCH);
+#endif
+        ACCUMULATOR_TYPE in = input[new_index];
         max_value = max(max_value, in);
         data[cls] = in;
+
+//        printf("other0=%d other1=%d other2=%d other3=%d cls=%d index=%d new_index=%d in=%f\n",
+//                other0, other1, other2, other3, cls, index, new_index, in);
     }
 
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
@@ -49,11 +57,16 @@ KERNEL(softmax)(
     {
         const ACCUMULATOR_TYPE res = data[cls] / denominator;
         const uint output_idx = out_depth_offset + cls*OUTPUT_CLASS_PITCH;
+#if INPUT0_DIMS == 5
+        const uint new_output_idx = OUTPUT_GET_INDEX(other3, other1, other2, other0, cls*OUTPUT_CLASS_PITCH);
+#else
+        const uint new_output_idx = OUTPUT_GET_INDEX(other3, other1, other2, other0 + cls*OUTPUT_CLASS_PITCH);
+#endif
 #if HAS_FUSED_OPS
         FUSED_OPS;
         output[output_idx] = FUSED_OPS_RESULT;
 #else
-        output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
+        output[new_output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
 #endif
     }
 }
