@@ -253,7 +253,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
 
 namespace {
 const std::vector<format::type> formats2D{
-        //format::bfyx,
+        format::bfyx,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
         format::bs_fs_yx_bsv16_fsv16,
@@ -728,7 +728,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_all) {
     //  Input  : 2x3x2x2x2
     static const int32_t x_size = 2, y_size = 2, z_size = 2, feature_num = 3,
                          batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
-    for (const auto data_format : formats2D) {
+    for (const auto data_format : formats3D) {
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory(
@@ -737,7 +737,7 @@ TEST(softmax_gpu_bfzyx_f32, normalize_all) {
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reordered_input", "input", data_format, data_types::f32));
         topology.add(softmax("blocked_softmax", "reordered_input", softmax::normalize_all));
-        topology.add(reorder("softmax", "blocked_softmax", format::bfyx, data_types::f32));
+        topology.add(reorder("softmax", "blocked_softmax", format::bfzyx, data_types::f32));
 
         set_values(input, {//    z0y0x0 z0y0x1 z0y1x0 z0y1x1 z1y0x0 z1y0x1 z1y1x0 z1y1x1
                 /*b0f0*/ 0.1f, -0.1f, 0.9f, 1.5f, 0.2f, -0.2f, 0.9f, 2.5f,
