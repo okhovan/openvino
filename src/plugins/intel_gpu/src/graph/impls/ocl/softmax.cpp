@@ -29,6 +29,7 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
         auto& input = sm_params.inputs[0];
         auto& output = sm_params.outputs[0];
         const auto primitive = arg.get_primitive();
+        const auto is_blocked_format = arg.input().get_output_layout().format.is_blocked();
 
         switch (primitive->dimension) {
             case softmax::normalize_x:
@@ -40,11 +41,15 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
                 break;
 
             case softmax::normalize_fyx:
-                // Flatten fused with softmax
-                input = input.FlattenFeatureAndSpatials();
-                output = output.FlattenFeatureAndSpatials();
+                if (is_blocked_format) {
+                    sm_params.dim = kernel_selector::softmax_dim::FYX;
+                } else {
+                    // Flatten fused with softmax
+                    input = input.FlattenFeatureAndSpatials();
+                    output = output.FlattenFeatureAndSpatials();
 
-                sm_params.dim = kernel_selector::softmax_dim::FEATURE;
+                    sm_params.dim = kernel_selector::softmax_dim::FEATURE;
+                }
                 break;
 
             case softmax::normalize_b:
@@ -60,10 +65,14 @@ struct softmax_impl : typed_primitive_impl_ocl<softmax> {
                 break;
 
             case softmax::normalize_all:
-                input = input.FlattenEverything();
-                output = output.FlattenEverything();
+                if (is_blocked_format) {
+                    sm_params.dim = kernel_selector::softmax_dim::ALL;
+                } else {
+                    input = input.FlattenEverything();
+                    output = output.FlattenEverything();
 
-                sm_params.dim = kernel_selector::softmax_dim::FEATURE;
+                    sm_params.dim = kernel_selector::softmax_dim::FEATURE;
+                }
                 break;
 
             default:

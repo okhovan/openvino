@@ -7,7 +7,7 @@
 #include "softmax_kernel_bf.h"
 #include "softmax_kernel_fb.h"
 #include "softmax_kernel_items_class_optimized.h"
-#include "softmax_kernel_blocked.h"
+#include "softmax_kernel_blocked_single_axis.h"
 
 namespace kernel_selector {
 
@@ -16,7 +16,7 @@ softmax_kernel_selector::softmax_kernel_selector() {
     Attach<SoftmaxKernel_bf>();
     Attach<SoftmaxKernel_fb>();
     Attach<SoftmaxKerneItemsClassOptimized>();
-    Attach<SoftmaxKernelBlocked>();
+    Attach<SoftmaxKernelBlockedSingleAxis>();
 }
 
 KernelsData softmax_kernel_selector::GetBestKernels(const Params& params, const optional_params& options) const {
