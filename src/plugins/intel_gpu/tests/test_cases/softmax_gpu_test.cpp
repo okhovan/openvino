@@ -199,7 +199,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
     // TBD FlattenFeatureAndSpatials()
     for (const auto data_format : formats2D) {
-//std::cout << "DEBUG " << data_format << std::endl;
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
