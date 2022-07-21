@@ -11,6 +11,24 @@ using namespace cldnn;
 using namespace std;
 using namespace ::tests;
 
+namespace {
+const std::vector<format::type> formats2D{
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
+};
+
+const std::vector<format::type> formats3D{
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::bs_fs_zyx_bsv16_fsv16
+};
+};  // namespace
+
+
 class softmax_gpu_xb_f32_test_fixture: public ::testing::Test {
 public:
     static const int32_t
@@ -23,6 +41,7 @@ public:
     float out_buffer[out_size];
     float expected_buffer[out_size];
 
+    const format::type plain_format{format::yxfb};
     cldnn::engine& engine;
     cldnn::memory::ptr input;
 
@@ -30,7 +49,7 @@ public:
 
     softmax_gpu_xb_f32_test_fixture()
         : engine(get_test_engine())
-        , input(engine.allocate_memory({ data_types::f32, format::yxfb, { input_b, 1, input_x, 1}}))
+        , input(engine.allocate_memory({ data_types::f32, plain_format, { input_b, 1, input_x, 1}}))
     {}
 
     void compare_out_buffer_with_expected() {
@@ -64,27 +83,37 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values) {
               in_buffer[i] = 1.0f;
         expected_buffer[i] = 0.1f;
     }
-    std::vector<float> in_b(std::begin(in_buffer), std::end(in_buffer));
 
-    set_values(input, in_b);
+        std::vector<float> in_b(std::begin(in_buffer), std::end(in_buffer));
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(false));
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", "input")), bo);
-    network.set_input_data("input", input);
+        set_values(input, in_b);
 
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+    for (const auto data_format : formats2D) {
+        std::cout << "DEBUG " << data_format << std::endl;
 
-    auto output_prim = outputs.begin()->second.get_memory();
+        build_options bo;
+        bo.set_option(build_option::optimize_data(false));
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reordered_input", "input", data_format, data_types::f32));
+        topology.add(softmax("blocked_softmax", "reordered_input"));
+        topology.add(reorder("softmax", "blocked_softmax", plain_format, data_types::f32));
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (uint32_t i = 0; i < out_size; i++)
-    {
-        out_buffer[i] = output_ptr[i];
+        network network(engine, topology, bo);
+        network.set_input_data("input", input);
+
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "softmax");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        for (uint32_t i = 0; i < out_size; i++) {
+            out_buffer[i] = output_ptr[i];
+        }
+        compare_out_buffer_with_expected();
     }
-    compare_out_buffer_with_expected();
 }
 
 TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values_batch_wise) {
@@ -100,23 +129,32 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values_batch_wise) {
     for(size_t i = 0; i < out_size; ++i)
         expected_buffer[i] = 0.1f;
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(false));
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", "input")), bo);
-    network.set_input_data("input", input);
+    for (const auto data_format : formats2D) {
+        std::cout << "DEBUG " << data_format << std::endl;
 
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+        build_options bo;
+        bo.set_option(build_option::optimize_data(false));
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reordered_input", "input", data_format, data_types::f32));
+        topology.add(softmax("blocked_softmax", "reordered_input"));
+        topology.add(reorder("softmax", "blocked_softmax", plain_format, data_types::f32));
 
-    auto output_prim = outputs.begin()->second.get_memory();
+        network network(engine, topology, bo);
+        network.set_input_data("input", input);
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (uint32_t i = 0; i < out_size; i++)
-    {
-        out_buffer[i] = output_ptr[i];
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "softmax");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        for (uint32_t i = 0; i < out_size; i++) {
+            out_buffer[i] = output_ptr[i];
+        }
+        compare_out_buffer_with_expected_batch_wise();
     }
-    compare_out_buffer_with_expected_batch_wise();
 }
 
 TEST_F(softmax_gpu_xb_f32_test_fixture, values_batch_wise) {
@@ -157,41 +195,33 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, values_batch_wise) {
     for(size_t i = 0; i < out_size; ++i)
         out_buffer[i] = NAN;
 
-    build_options bo;
-    bo.set_option(build_option::optimize_data(false));
-    network network(engine, topology(input_layout("input", input->get_layout()), softmax("softmax", "input")),bo);
-    network.set_input_data("input", input);
+    for (const auto data_format : formats2D) {
+        std::cout << "DEBUG " << data_format << std::endl;
 
-    auto outputs = network.execute();
-    EXPECT_EQ(outputs.size(), size_t(1));
-    EXPECT_EQ(outputs.begin()->first, "softmax");
+        build_options bo;
+        bo.set_option(build_option::optimize_data(false));
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reordered_input", "input", data_format, data_types::f32));
+        topology.add(softmax("blocked_softmax", "reordered_input"));
+        topology.add(reorder("softmax", "blocked_softmax", plain_format, data_types::f32));
 
-    auto output_prim = outputs.begin()->second.get_memory();
+        network network(engine, topology, bo);
+        network.set_input_data("input", input);
 
-    cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
-    for (uint32_t i = 0; i < out_size; i++)
-    {
-        out_buffer[i] = output_ptr[i];
+        auto outputs = network.execute();
+        EXPECT_EQ(outputs.size(), size_t(1));
+        EXPECT_EQ(outputs.begin()->first, "softmax");
+
+        auto output_prim = outputs.begin()->second.get_memory();
+
+        cldnn::mem_lock<float> output_ptr(output_prim, get_test_stream());
+        for (uint32_t i = 0; i < out_size; i++) {
+            out_buffer[i] = output_ptr[i];
+        }
+        compare_out_buffer_with_expected_batch_wise();
     }
-    compare_out_buffer_with_expected_batch_wise();
 }
-
-namespace {
-const std::vector<format::type> formats2D{
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32
-};
-
-const std::vector<format::type> formats3D{
-        format::bfzyx,
-        format::b_fs_zyx_fsv16,
-        format::bs_fs_zyx_bsv16_fsv16
-};
-};  // namespace
 
 TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
     //  Input  : 2x3x2x2
