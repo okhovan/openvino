@@ -89,7 +89,7 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values) {
         set_values(input, in_b);
 
     for (const auto data_format : formats2D) {
-        std::cout << "DEBUG " << data_format << std::endl;
+//        std::cout << "DEBUG " << data_format << std::endl;
 
         build_options bo;
         bo.set_option(build_option::optimize_data(false));
@@ -130,7 +130,7 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, input_same_values_batch_wise) {
         expected_buffer[i] = 0.1f;
 
     for (const auto data_format : formats2D) {
-        std::cout << "DEBUG " << data_format << std::endl;
+//        std::cout << "DEBUG " << data_format << std::endl;
 
         build_options bo;
         bo.set_option(build_option::optimize_data(false));
@@ -196,7 +196,7 @@ TEST_F(softmax_gpu_xb_f32_test_fixture, values_batch_wise) {
         out_buffer[i] = NAN;
 
     for (const auto data_format : formats2D) {
-        std::cout << "DEBUG " << data_format << std::endl;
+//        std::cout << "DEBUG " << data_format << std::endl;
 
         build_options bo;
         bo.set_option(build_option::optimize_data(false));
@@ -229,7 +229,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
         batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
     // TBD FlattenFeatureAndSpatials()
     for (const auto data_format : formats2D) {
-std::cout << "DEBUG " << data_format << std::endl;
+//std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
@@ -709,8 +709,16 @@ std::cout << "DEBUG " << data_format << std::endl;
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
         float sum = 0.0f;
         float expected_sum = 1.0f;
+        std::vector<float> expected_values = {
+            6.45878e-06f, 5.288e-06f, 1.43743e-05f, 2.61917e-05f,
+            7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+            7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+            0.000117383f, 9.63537e-06f, 0.00640888f, 0.951163f,
+            0.00031908f, 9.63537e-06f, 0.0174212f, 0.0212782f,
+            7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f};
         for (uint32_t i = 0; i < buf_size; i++) {
             sum += output_ptr[i];
+            EXPECT_NEAR(output_ptr[i], expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
         }
         EXPECT_EQ(true, are_equal(sum, expected_sum)) << "data_format=" << data_format;
     }
@@ -729,7 +737,7 @@ std::cout << "DEBUG " << data_format << std::endl;
         topology.add(input_layout("input", input->get_layout()));
         topology.add(reorder("reordered_input", "input", data_format, data_types::f32));
         topology.add(softmax("blocked_softmax", "reordered_input", softmax::normalize_all));
-        topology.add(reorder("softmax", "blocked_softmax", format::bfyx, data_types::f32));
+        topology.add(reorder("softmax", "blocked_softmax", format::yxfb, data_types::f32));
 
         set_values(input, {//yxfb
                 //       f0b0  f0b1   f1b0    f1b1
@@ -754,8 +762,17 @@ std::cout << "DEBUG " << data_format << std::endl;
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
         float sum = 0.0f;
         float expected_sum = 1.0f;
+        std::vector<float> expected_values = {
+            6.45878e-06f, 5.288e-06f, 1.43743e-05f, 2.61917e-05f,
+            7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+            7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+            0.000117383f, 9.63537e-06f, 0.00640888f, 0.951163f,
+            0.00031908f, 9.63537e-06f, 0.0174212f, 0.0212782f,
+            7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f};
+
         for (uint32_t i = 0; i < buf_size; i++) {
             sum += output_ptr[i];
+            EXPECT_NEAR(output_ptr[i], expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
         }
         EXPECT_EQ(true, are_equal(sum, expected_sum)) << "data_format=" << data_format;
     }
@@ -800,8 +817,16 @@ std::cout << "DEBUG " << data_format << std::endl;
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
         float sum = 0.0f;
         float expected_sum = 1.0f;
+        std::vector<float> expected_values = {
+            3.08269e-10f, 2.52389e-10f, 6.86066e-10f, 1.25009e-09f, 3.4069e-10f, 2.28371e-10f, 6.86066e-10f, 3.3981e-09f,
+            3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 3.76521e-10f, 3.08269e-10f, 4.65866e-15f, 1.37444e-07f,
+            3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 3.08269e-10f, 3.76521e-10f, 3.44231e-14f, 1.86011e-08f,
+            5.60253e-09f, 4.59884e-10f, 3.05888e-07f, 4.53977e-05f, 4.13974e-08f, 3.08269e-10f, 1.1253e-07f, 0.999952f,
+            1.52293e-08f, 4.59884e-10f, 8.31488e-07f, 1.01558e-06f, 2.51738e-09f, 3.76521e-10f, 1.1253e-07f, 5.05629e-08f,
+            3.4069e-10f, 3.4069e-10f, 1.26636e-14f, 5.05629e-08f, 9.26093e-10f, 3.76521e-10f, 1.71382e-15f, 2.51738e-09f};
         for (uint32_t i = 0; i < buf_size; i++) {
             sum += output_ptr[i];
+            EXPECT_NEAR(output_ptr[i], expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
         }
         EXPECT_EQ(true, are_equal(sum, expected_sum)) << "data_format=" << data_format;
     }
@@ -813,7 +838,7 @@ TEST(softmax_gpu_bfyx_f16, normalize_all) {
                          batch_num = 2, buf_size = x_size * y_size * batch_num * feature_num;
 
     for (const auto data_format : formats2D) {
-std::cout << "DEBUG " << data_format << std::endl;
+//std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f16, format::bfyx, {batch_num, feature_num, x_size, y_size}});
@@ -846,8 +871,17 @@ std::cout << "DEBUG " << data_format << std::endl;
         cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
         float sum = 0.0f;
         float expected_sum = 1.0f;
+        std::vector<float> expected_values = {
+            6.4373e-06f, 5.30481e-06f, 1.43647e-05f, 2.61664e-05f,
+            7.15256e-06f, 7.15256e-06f, 0.0f, 0.00105858f,
+            7.15256e-06f, 7.15256e-06f, 0.0f, 0.00105858f,
+            0.000117421f, 9.65595e-06f, 0.00640869f, 0.951172f,
+            0.000319004f, 9.65595e-06f, 0.0174255f, 0.0211792f,
+            7.15256e-06f, 7.15256e-06f, 0.0f, 0.00105858f};
         for (uint32_t i = 0; i < buf_size; i++) {
-            sum += float16_to_float32(output_ptr[i]);
+            const auto value = float16_to_float32(output_ptr[i]);
+            sum += value;
+            EXPECT_NEAR(value, expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
         }
         ASSERT_NEAR(sum, expected_sum, 0.001) << "data_format=" << data_format;
     }
@@ -891,8 +925,17 @@ std::cout << "DEBUG " << data_format << std::endl;
         cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
         float sum = 0.0f;
         float expected_sum = 1.0f;
+        std::vector<float> expected_values = {
+            6.4373e-06f, 7.15256e-06f, 7.15256e-06f, 0.000117421f,
+            0.000319004f, 7.15256e-06f, 1.43647e-05f, 0.0f,
+            0.0f, 0.00640869f, 0.0174255f, 0.0f,
+            5.30481e-06f, 7.15256e-06f, 7.15256e-06f, 9.65595e-06f,
+            9.65595e-06f, 7.15256e-06f, 2.61664e-05f, 0.00105858f,
+            0.00105858f, 0.951172f, 0.0211792f, 0.00105858f};
         for (uint32_t i = 0; i < buf_size; i++) {
-            sum += float16_to_float32(output_ptr[i]);
+            const auto value = float16_to_float32(output_ptr[i]);
+            sum += value;
+            EXPECT_NEAR(value, expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
         }
         ASSERT_NEAR(sum, expected_sum, 0.001) << "data_format=" << data_format;
     }
@@ -903,7 +946,7 @@ TEST(softmax_gpu_bfzyx_f16, normalize_all) {
     static const int32_t x_size = 2, y_size = 2, z_size = 2, feature_num = 3,
                          batch_num = 2, buf_size = x_size * y_size * z_size * batch_num * feature_num;
     for (const auto data_format : formats3D) {
-std::cout << "DEBUG " << data_format << std::endl;
+//std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory(
@@ -944,8 +987,17 @@ std::cout << "DEBUG " << data_format << std::endl;
         cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
         float sum = 0.0f;
         float expected_sum = 1.0f;
+        const std::vector<float> expected_values = {
+            0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 0.0f, 5.96046e-08f, 0.0f, 0.0f, 0.0f, 1.19209e-07f,
+            0.0f, 0.0f, 0.0f, 5.96046e-08f, 0.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 2.98023e-07f, 4.54187e-05f, 5.96046e-08f, 0.0f, 1.19209e-07f, 1.0f,
+            0.0f, 0.0f, 8.34465e-07f, 1.01328e-06f, 0.0f, 0.0f, 1.19209e-07f, 5.96046e-08f,
+            0.0f, 0.0f, 0.0f, 5.96046e-08f, 0.0f, 0.0f, 0.0f, 0.0f};
         for (uint32_t i = 0; i < buf_size; i++) {
-            sum += float16_to_float32(output_ptr[i]);
+            const auto value = float16_to_float32(output_ptr[i]);
+            sum += value;
+            EXPECT_NEAR(value, expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
         }
         ASSERT_NEAR(sum, expected_sum, 0.001) << "data_format=" << data_format;
     }
