@@ -60,14 +60,16 @@ ParamsKey SoftmaxKernelBlockedAllAxis::GetSupportedKey() const {
 SoftmaxKernelBlockedAllAxis::Parent::DispatchData SoftmaxKernelBlockedAllAxis::SetDefault(const softmax_params& params,
                                                                                                 const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
-    //***const auto& out = params.outputs[0];
+    const auto& out = params.outputs[0];
 
     switch (params.dim) {
         case SoftmaxDim::ALL:
-            dispatchData.gws = {1, 1, 1};
+            dispatchData.gws = {out.Batch().v, out.Feature().v, 1};
+            dispatchData.lws = {out.Batch().v, out.Feature().v, 1};
             break;
         case SoftmaxDim::FYX:
             dispatchData.gws = {1, 1, 1};
+            dispatchData.lws = {1, 1, 1};
             break;
 
 /*
@@ -89,9 +91,10 @@ SoftmaxKernelBlockedAllAxis::Parent::DispatchData SoftmaxKernelBlockedAllAxis::S
 */
         default:
             dispatchData.gws = {1, 1, 1};
+            dispatchData.lws = {1, 1, 1};
     }
 
-    dispatchData.lws = {1, 1, 1};//GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    //dispatchData.lws = {1, 1, 1};//GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
 
     return dispatchData;
 }
