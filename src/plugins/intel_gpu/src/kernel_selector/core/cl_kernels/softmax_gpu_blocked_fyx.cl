@@ -5,13 +5,13 @@
 #include "include/batch_headers/common.cl"
 
 
-__attribute__((intel_reqd_sub_group_size(16)))
+//__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
-    #if HAS_FUSED_OPS_DECLS
+#if HAS_FUSED_OPS_DECLS
     , FUSED_OPS_DECLS
-    #endif
+#endif
 ) {
     ACCUMULATOR_TYPE max_value = UNIT_VAL_MIN;
     ACCUMULATOR_TYPE data[CLASS_NUM];
@@ -41,7 +41,6 @@ KERNEL(softmax)(
         #endif
     }
 
-    // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
     for (cls = 0; cls < CLASS_NUM; ++cls) {
         data[cls] = native_exp(data[cls] - max_value);

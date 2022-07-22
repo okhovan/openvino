@@ -61,21 +61,14 @@ SoftmaxKernelBlockedAllAxis::Parent::DispatchData SoftmaxKernelBlockedAllAxis::S
                                                                                                 const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
     const auto& in = params.inputs[0];
-    const auto ndims = in.GetDims().size();
-
-    if (ndims == 5) {
-        dispatchData.gws = {in.Batch().v, in.Feature().v, 1};
-    } else {
-        dispatchData.gws = {in.Batch().v, in.Feature().v, 1};
-    }
+    dispatchData.gws = {in.Batch().v, in.Feature().v, 1};
     dispatchData.lws = dispatchData.gws;
 
     return dispatchData;
 }
 
 KernelsPriority SoftmaxKernelBlockedAllAxis::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    // TODO bring back DONT_USE_IF_HAVE_SOMETHING_ELSE after debugging
-    return /*FORCE_PRIORITY_9*/ DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 KernelsData SoftmaxKernelBlockedAllAxis::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -83,26 +76,14 @@ KernelsData SoftmaxKernelBlockedAllAxis::GetKernelsData(const Params& params, co
 }
 JitConstants SoftmaxKernelBlockedAllAxis::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = SoftmaxKernelBase::GetJitConstants(params, dispatchData);
-    jit.AddConstant(MakeJitConstant("SOFTMAX_DIM_" + toString(params.dim), "1"));
 
-    std::vector<std::string> idx_order;
     const auto& in = params.inputs[0];
     const auto ndims = in.GetDims().size();
-    const auto class_num = in.Feature().v * in.Batch().v * in.X().v * in.Y().v * (ndims == 5 ? in.Z().v : 1);
+    const auto class_num = in.Feature().v * in.Batch().v;
     jit.AddConstant(MakeJitConstant("CLASS_NUM", class_num));
+    const std::vector<std::string> idx_order = {"b", "f", ndims == 5 ? "z" : "0", "y", "x"};
 
-    switch (params.dim) {
-        case SoftmaxDim::ALL:
-            idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "other0", "cls"};
-            break;
-        case SoftmaxDim::FYX:
-            idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "cls", "other0"};
-            break;
-        default:
-            break;
-    }
-
-    auto acc_dt = GetAccumulatorType(params);
+    const auto acc_dt = GetAccumulatorType(params);
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
