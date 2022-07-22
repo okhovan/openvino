@@ -60,41 +60,15 @@ ParamsKey SoftmaxKernelBlockedAllAxis::GetSupportedKey() const {
 SoftmaxKernelBlockedAllAxis::Parent::DispatchData SoftmaxKernelBlockedAllAxis::SetDefault(const softmax_params& params,
                                                                                                 const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
-    const auto& out = params.outputs[0];
+    const auto& in = params.inputs[0];
+    const auto ndims = in.GetDims().size();
 
-    switch (params.dim) {
-        case SoftmaxDim::ALL:
-            dispatchData.gws = {out.Batch().v, out.Feature().v, 1};
-            dispatchData.lws = {out.Batch().v, out.Feature().v, 1};
-            break;
-        case SoftmaxDim::FYX:
-            dispatchData.gws = {1, 1, 1};
-            dispatchData.lws = {1, 1, 1};
-            break;
-
-/*
-        case SoftmaxDim::X:
-            dispatchData.gws = {out.Y().v * out.Z().v, out.Feature().v, out.Batch().v};
-            break;
-        case SoftmaxDim::Y:
-            dispatchData.gws = {out.X().v * out.Z().v, out.Feature().v, out.Batch().v};
-            break;
-        case SoftmaxDim::Z:
-            dispatchData.gws = {out.X().v * out.Y().v, out.Feature().v, out.Batch().v};
-            break;
-        case SoftmaxDim::FEATURE:
-            dispatchData.gws = {out.X().v * out.Z().v, out.Y().v, out.Batch().v};
-            break;
-        case SoftmaxDim::BATCH:
-            dispatchData.gws = {out.X().v * out.Z().v, out.Y().v, out.Feature().v};
-            break;
-*/
-        default:
-            dispatchData.gws = {1, 1, 1};
-            dispatchData.lws = {1, 1, 1};
+    if (ndims == 5) {
+        dispatchData.gws = {in.Batch().v, in.Feature().v, 1};
+    } else {
+        dispatchData.gws = {in.Batch().v, in.Feature().v, 1};
     }
-
-    //dispatchData.lws = {1, 1, 1};//GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.lws = dispatchData.gws;
 
     return dispatchData;
 }
