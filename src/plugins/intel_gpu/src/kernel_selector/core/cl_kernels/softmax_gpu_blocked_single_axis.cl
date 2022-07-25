@@ -23,8 +23,8 @@ KERNEL(softmax)(
 
     const uint b = get_global_id(2);
     const uint f = get_global_id(1);
-    const uint z = (uint)get_global_id(0) % INPUT0_SIZE_Y;
-    const uint y = (uint)get_global_id(0) / INPUT0_SIZE_Y;
+    const uint z = (uint)get_global_id(0) % INPUT0_SIZE_Z;
+    const uint y = (uint)get_global_id(0) / INPUT0_SIZE_Z;
     const uint x = 0;
 #elif SOFTMAX_DIM_Y
     y_offset = &cls;
