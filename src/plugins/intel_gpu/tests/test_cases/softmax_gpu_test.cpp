@@ -1393,3 +1393,167 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_SOFTMAX,
     softmax_test,
     ::testing::Combine(::testing::ValuesIn(softmax_test::generate_generic_test_params()), ::testing::ValuesIn(softmax_test::generate_specific_test_params())),
     softmax_test::custom_param_name);
+
+
+
+
+
+
+
+
+template<typename T>
+struct SoftmaxParams {
+    softmax::dimension_t axis;
+    tensor input_tensor;
+    std::vector<T> input;
+    std::vector<T> expected;
+};
+
+template<typename T>
+using SoftmaxParamsWithFormat = std::tuple<
+    SoftmaxParams<T>,
+    format::type,     // source (plain) layout - bfyx, yxfb or bfzyx
+    format::type      // target (blocked) layout
+>;
+
+template<typename T>
+struct my_softmax_test
+        : public ::testing::TestWithParam<SoftmaxParamsWithFormat<T> > {
+public:
+    void test() {
+        const auto data_type = type_to_data_type<T>::value;
+        SoftmaxParams<T> params;
+        format::type plain_format;
+        format::type target_format;
+
+        std::tie(params, plain_format, target_format) = this->GetParam();
+
+        auto& engine = get_test_engine();
+        const auto input = engine.allocate_memory({data_type, plain_format, params.input_tensor});
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("reordered_input", "input", target_format, data_type));
+        topology.add(softmax("blocked_softmax", "reordered_input", params.axis));
+        topology.add(reorder("softmax", "blocked_softmax", plain_format, data_type));
+
+        set_values(input, params.input);
+
+        build_options bo;
+        bo.set_option(build_option::optimize_data(false));
+        network network(engine, topology);
+
+        network.set_input_data("input", input);
+        const auto outputs = network.execute();
+        const auto output = outputs.at("softmax").get_memory();
+        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(params.input_tensor.count(), output_ptr.size());
+        for (uint32_t i = 0; i < output_ptr.size(); i++) {
+            EXPECT_NEAR(output_ptr[i], params.expected[i], 0.001) << "target_format;=" << target_format << ", i=" << i;
+        }
+    }
+};
+
+
+template<typename T>
+std::vector<T> getValues(const std::vector<float> &values) {
+    std::vector<T> result(values.begin(), values.end());
+    return result;
+}
+
+template<typename T>
+std::vector<SoftmaxParams<T>> generateSoftmaxParams2D() {
+    const std::vector<SoftmaxParams<T>> result  = {
+        {
+            softmax::dimension_t::normalize_all,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                6.45878e-06f, 5.288e-06f, 1.43743e-05f, 2.61917e-05f,
+                7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+                7.13805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f,
+                0.000117383f, 9.63537e-06f, 0.00640888f, 0.951163f,
+                0.00031908f, 9.63537e-06f, 0.0174212f, 0.0212782f,
+                7.3805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f})
+        },
+        {
+            softmax::dimension_t::normalize_y,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.310026f, 0.167982f, 0.689974f, 0.832018f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f,
+                0.0179862f, 1.013e-05f, 0.982014f, 0.99999f,
+                0.0179862f, 0.000452622f, 0.982014f, 0.999547f,
+                0.999963f, 0.00669285f, 3.71689e-05f, 0.993307f})
+        },
+        {
+            softmax::dimension_t::normalize_x,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.549834f, 0.450166f, 0.354344f, 0.645656f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f,
+                0.924142f, 0.0758582f, 0.00669285f, 0.993307f,
+                0.970688f, 0.0293122f, 0.450166f, 0.549834f,
+                0.5f, 0.5f, 2.50452e-07f, 1.0f})
+        },
+
+    };
+    return result;
+}
+
+struct PrintToStringParamName {
+    template<class T>
+    std::string operator()(const testing::TestParamInfo<SoftmaxParamsWithFormat<T> > &param) {
+        std::stringstream buf;
+        SoftmaxParams<T> p;
+        format::type plain_format;
+        format::type target_format;
+        std::tie(p, plain_format, target_format) = param.param;
+        buf << "_inputTensor=" << p.input_tensor.to_string()
+            << "_axis=" << p.axis
+            << "_plainFormat=" << plain_format
+            << "_targetFormat=" << target_format;
+        return buf.str();
+    }
+};
+
+using my_softmax_test_f32 = my_softmax_test<float>;
+using my_softmax_test_f16 = my_softmax_test<half_t>;
+
+TEST_P(my_softmax_test_f32, my_softmax_test_f32) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+//TEST_P(my_softmax_test_f16, my_softmax_test_f16) {
+//    ASSERT_NO_FATAL_FAILURE(test());
+//}
+
+const std::vector<softmax::dimension_t> axis2D = {
+    softmax::dimension_t::normalize_all,
+    softmax::dimension_t::normalize_fyx,
+    softmax::dimension_t::normalize_b,
+    softmax::dimension_t::normalize_f,
+    softmax::dimension_t::normalize_y,
+    softmax::dimension_t::normalize_x
+};
+
+INSTANTIATE_TEST_SUITE_P(my_softmax_test_f32_2d,
+                         my_softmax_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSoftmaxParams2D<float>()),
+                                 ::testing::ValuesIn({format::bfyx/*, format::yxfb*/}),
+                                 ::testing::ValuesIn(formats2D)
+                                 ),
+                         PrintToStringParamName());
+
