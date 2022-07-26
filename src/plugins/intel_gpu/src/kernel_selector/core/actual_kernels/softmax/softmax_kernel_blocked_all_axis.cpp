@@ -39,7 +39,7 @@ ParamsKey SoftmaxKernelBlockedAllAxis::GetSupportedKey() const {
     return k;
 }
 
-SoftmaxKernelBlockedAllAxis::Parent::DispatchData SoftmaxKernelBlockedAllAxis::SetDefault(const softmax_params& params,
+SoftmaxKernelBlockedAllAxis::DispatchData SoftmaxKernelBlockedAllAxis::SetDefault(const softmax_params& params,
                                                                                                 const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
     const auto& in = params.inputs[0];
@@ -53,11 +53,19 @@ KernelsPriority SoftmaxKernelBlockedAllAxis::GetKernelsPriority(const Params& /*
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
+bool SoftmaxKernelBlockedAllAxis::Validate(const Params& params, const optional_params& o) const {
+    if (!Parent::Validate(params, o)) {
+        return false;
+    }
+    const auto& softmax_params = static_cast<const kernel_selector::softmax_params&>(params);
+    return softmax_params.dim == SoftmaxDim::ALL;
+}
+
 KernelsData SoftmaxKernelBlockedAllAxis::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
 JitConstants SoftmaxKernelBlockedAllAxis::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
-    auto jit = SoftmaxKernelBase::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
 
     const auto& in = params.inputs[0];
     const auto ndims = in.GetDims().size();
@@ -65,7 +73,7 @@ JitConstants SoftmaxKernelBlockedAllAxis::GetJitConstants(const softmax_params& 
     jit.AddConstant(MakeJitConstant("CLASS_NUM", class_num));
     const std::vector<std::string> idx_order = {"b", "f", ndims == 5 ? "z" : "0", "y", "x"};
 
-    const auto acc_dt = GetAccumulatorType(params);
+    const auto acc_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {

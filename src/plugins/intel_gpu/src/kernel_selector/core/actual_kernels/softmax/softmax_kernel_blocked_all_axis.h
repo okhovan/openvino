@@ -18,13 +18,8 @@ public:
     ParamsKey GetSupportedKey() const override;
 
 protected:
+    bool Validate(const Params& p, const optional_params& o) const override;
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
     DispatchData SetDefault(const softmax_params& params, const optional_params& optParams) const override;
-    Datatype GetAccumulatorType(const softmax_params& params) const {
-        if (params.inputs[0].GetDType() == Datatype::F16)
-            return Datatype::F16;
-        else
-            return Datatype::F32;
-    }
 };
 }  // namespace kernel_selector

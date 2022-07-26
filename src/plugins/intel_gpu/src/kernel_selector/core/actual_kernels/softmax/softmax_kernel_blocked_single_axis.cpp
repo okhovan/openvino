@@ -43,7 +43,7 @@ ParamsKey SoftmaxKernelBlockedSingleAxis::GetSupportedKey() const {
     return k;
 }
 
-SoftmaxKernelBlockedSingleAxis::Parent::DispatchData SoftmaxKernelBlockedSingleAxis::SetDefault(const softmax_params& params,
+SoftmaxKernelBlockedSingleAxis::DispatchData SoftmaxKernelBlockedSingleAxis::SetDefault(const softmax_params& params,
                                                                                                 const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
     const auto& out = params.outputs[0];
@@ -77,11 +77,23 @@ KernelsPriority SoftmaxKernelBlockedSingleAxis::GetKernelsPriority(const Params&
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
+bool SoftmaxKernelBlockedSingleAxis::Validate(const Params& params, const optional_params& o) const {
+    if (!Parent::Validate(params, o)) {
+        return false;
+    }
+    const auto& softmax_params = static_cast<const kernel_selector::softmax_params&>(params);
+    return softmax_params.dim == SoftmaxDim::BATCH
+            || softmax_params.dim == SoftmaxDim::FEATURE
+            || softmax_params.dim == SoftmaxDim::Z
+            || softmax_params.dim == SoftmaxDim::Y
+            || softmax_params.dim == SoftmaxDim::X;
+}
+
 KernelsData SoftmaxKernelBlockedSingleAxis::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
 JitConstants SoftmaxKernelBlockedSingleAxis::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
-    auto jit = SoftmaxKernelBase::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
     jit.AddConstant(MakeJitConstant("SOFTMAX_DIM_" + toString(params.dim), "1"));
 
     std::vector<std::string> idx_order;
@@ -111,7 +123,7 @@ JitConstants SoftmaxKernelBlockedSingleAxis::GetJitConstants(const softmax_param
             break;
     }
 
-    auto acc_dt = GetAccumulatorType(params);
+    auto acc_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {

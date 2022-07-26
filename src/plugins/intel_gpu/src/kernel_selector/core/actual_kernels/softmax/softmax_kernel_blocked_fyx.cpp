@@ -39,7 +39,7 @@ ParamsKey SoftmaxKernelBlockedFyx::GetSupportedKey() const {
     return k;
 }
 
-SoftmaxKernelBlockedFyx::Parent::DispatchData SoftmaxKernelBlockedFyx::SetDefault(const softmax_params& params,
+SoftmaxKernelBlockedFyx::DispatchData SoftmaxKernelBlockedFyx::SetDefault(const softmax_params& params,
                                                                                           const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
     const auto& out = params.outputs[0];
@@ -53,11 +53,19 @@ KernelsPriority SoftmaxKernelBlockedFyx::GetKernelsPriority(const Params& /*para
     return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
+bool SoftmaxKernelBlockedFyx::Validate(const Params& params, const optional_params& o) const {
+    if (!Parent::Validate(params, o)) {
+        return false;
+    }
+    const auto& softmax_params = static_cast<const kernel_selector::softmax_params&>(params);
+    return softmax_params.dim == SoftmaxDim::FYX;
+}
+
 KernelsData SoftmaxKernelBlockedFyx::GetKernelsData(const Params& params, const optional_params& options) const {
     return GetCommonKernelsData(params, options);
 }
 JitConstants SoftmaxKernelBlockedFyx::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
-    auto jit = SoftmaxKernelBase::GetJitConstants(params, dispatchData);
+    auto jit = Parent::GetJitConstants(params, dispatchData);
     jit.AddConstant(MakeJitConstant("SOFTMAX_DIM_" + toString(params.dim), "1"));
 
     std::vector<std::string> idx_order;
@@ -67,7 +75,7 @@ JitConstants SoftmaxKernelBlockedFyx::GetJitConstants(const softmax_params& para
     jit.AddConstant(MakeJitConstant("CLASS_NUM", class_num));
     idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "cls", "other0"};
 
-    auto acc_dt = GetAccumulatorType(params);
+    auto acc_dt = GetActivationType(params);
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));
 
     if (!params.fused_ops.empty()) {
