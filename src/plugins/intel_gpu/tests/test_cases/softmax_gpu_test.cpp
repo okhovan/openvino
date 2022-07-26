@@ -249,9 +249,6 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
                 /*b1f2*/0.2f, 0.2f, -10.f, 5.2f
         });
 
-        float expected_max_values[2] = {
-                0.481618381f, 0.953259517f
-        };
 
         build_options bo;
         bo.set_option(build_option::optimize_data(false));
@@ -265,38 +262,19 @@ TEST(softmax_gpu_bfyx_f32, normalize_fyx) {
 
         auto output = outputs.at("softmax").get_memory();
         cldnn::mem_lock<float> output_ptr(output, get_test_stream());
-        float out_buffer[buf_size];
+        std::vector<float> expected_values = {
+            0.00293631f, 0.00240404f, 0.00653487f, 0.0119073f,
+            0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
+            0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
+            0.000117642f, 9.65661e-06f, 0.00642301f, 0.953259f,
+            0.000319783f, 9.65661e-06f, 0.0174596f, 0.0213251f,
+            7.15379e-06f, 7.15379e-06f, 2.65909e-10f, 0.00106172f,
+        };
         for (uint32_t i = 0; i < buf_size; i++) {
-            out_buffer[i] = output_ptr[i];
+            EXPECT_NEAR(output_ptr[i], expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
+            //std::cout << output_ptr[i] << "f, ";
         }
 
-        float sum = 0;
-        float expected_sum = 1.0f;
-
-        float temp_max = 0;
-        int max_value_buffer_index = 0;
-
-        for (uint32_t i = 0;
-             i < batch_num; i++) //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
-        {
-            for (uint32_t j = 0; j < y_size; j++) {
-                for (uint32_t k = 0; k < x_size; k++) {
-                    for (uint32_t l = 0; l < feature_num; l++) {
-                        int index = i * feature_num * x_size * y_size + j * x_size + k + l * x_size * y_size;
-                        sum += out_buffer[index];
-                        if (out_buffer[index] >= temp_max) {
-                            temp_max = out_buffer[index];
-                        }
-                    }
-                }
-            }
-
-            EXPECT_EQ(true, are_equal(sum, expected_sum));
-            sum = 0.0f;
-            EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
-            temp_max = 0;
-            max_value_buffer_index++;
-        }
     }
 }
 
@@ -496,6 +474,18 @@ TEST(softmax_gpu_bfyx_f32, normalize_f) {
                     sum = 0.0f;
                 }
             }
+        }
+        std::vector<float> expected_values = {
+            0.311493f, 0.270291f, 0.999963f, 0.0122108f,
+            0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+            0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+            0.264614f, 0.364855f, 0.268941f, 0.977054f,
+            0.719295f, 0.364855f, 0.731059f, 0.0218575f,
+            0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f
+        };
+        for (uint32_t i = 0; i < buf_size; i++) {
+            EXPECT_NEAR(output_ptr[i], expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
+            //std::cout << output_ptr[i] << "f, ";
         }
     }
 }
@@ -1122,6 +1112,7 @@ TEST(softmax_gpu_bfyx_f32, normalize_b) {
     static const int32_t x_size = 2, y_size = 2, feature_num = 2,
             batch_num = 3, buf_size = x_size*y_size * batch_num * feature_num;
     for (const auto data_format : formats2D) {
+std::cout << "DEBUG " << data_format << std::endl;
         auto &engine = get_test_engine();
 
         auto input = engine.allocate_memory({data_types::f32, format::bfyx, {batch_num, feature_num, x_size, y_size}});
@@ -1206,6 +1197,18 @@ TEST(softmax_gpu_bfyx_f32, normalize_b) {
                     sum = 0.0f;
                 }
             }
+        }
+        std::vector<float> expected_values = {
+            0.311493f, 0.270291f, 0.999963f, 0.0122108f,
+            0.264614f, 0.364855f, 0.268941f, 0.977054f,
+            0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+            0.719295f, 0.364855f, 0.731059f, 0.0218575f,
+            0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+            0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f
+        };
+        for (uint32_t i = 0; i < buf_size; i++) {
+            EXPECT_NEAR(output_ptr[i], expected_values[i], 0.001) << "data_format=" << data_format << ", i=" << i;
+            std::cout << output_ptr[i] << "f, ";
         }
     }
 }
@@ -1396,9 +1399,20 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_SOFTMAX,
 
 
 
+namespace {
+template<typename T>
+float getError();
 
+template<>
+float getError<float>() {
+    return 0.001;
+}
 
-
+template<>
+float getError<half_t>() {
+    return 0.2;
+}
+};
 
 
 template<typename T>
@@ -1450,10 +1464,11 @@ public:
 
         ASSERT_EQ(params.input_tensor.count(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_NEAR(output_ptr[i], params.expected[i], 0.001) << "target_format;=" << target_format << ", i=" << i;
+            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << "target_format=" << target_format << ", i=" << i;
         }
     }
 };
+
 
 
 template<typename T>
@@ -1478,6 +1493,48 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams2D() {
                 0.000117383f, 9.63537e-06f, 0.00640888f, 0.951163f,
                 0.00031908f, 9.63537e-06f, 0.0174212f, 0.0212782f,
                 7.3805e-06f, 7.13805e-06f, 2.65324e-10f, 0.00105938f})
+        },
+        {
+            softmax::dimension_t::normalize_fyx,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.00293631f, 0.00240404f, 0.00653487f, 0.0119073f,
+                0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
+                0.00324512f, 0.00324512f, 1.20622e-07f, 0.481618f,
+                0.000117642f, 9.65661e-06f, 0.00642301f, 0.953259f,
+                0.000319783f, 9.65661e-06f, 0.0174596f, 0.0213251f,
+                7.15379e-06f, 7.15379e-06f, 2.65909e-10f, 0.00106172f})
+        },
+        {
+            softmax::dimension_t::normalize_b,
+            tensor(3, 2, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 3.f, 0.5f, 7.f, 12.f, 0.2f, 0.2f, -10.f, 5.2f,
+                4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.311493f, 0.270291f, 0.999963f, 0.0122108f,
+                0.264614f, 0.364855f, 0.268941f, 0.977054f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.719295f, 0.364855f, 0.731059f, 0.0218575f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f})
+        },
+        {
+            softmax::dimension_t::normalize_f,
+            tensor(2, 3, 2, 2),
+            getValues<T>({
+                0.1f, -0.1f, 0.9f, 1.5f, 0.2f, 0.2f, -10.f, 5.2f, 0.2f, 0.2f, -10.f, 5.2f,
+                3.f, 0.5f, 7.f, 12.f, 4.f, 0.5f, 8.f, 8.2f, 0.2f, 0.2f, -10.f, 5.2f}),
+            getValues<T>({
+                0.311493f, 0.270291f, 0.999963f, 0.0122108f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.344253f, 0.364855f, 1.84576e-05f, 0.493895f,
+                0.264614f, 0.364855f, 0.268941f, 0.977054f,
+                0.719295f, 0.364855f, 0.731059f, 0.0218575f,
+                0.0160912f, 0.270291f, 1.1134e-08f, 0.00108822f})
         },
         {
             softmax::dimension_t::normalize_y,
@@ -1535,9 +1592,9 @@ TEST_P(my_softmax_test_f32, my_softmax_test_f32) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-//TEST_P(my_softmax_test_f16, my_softmax_test_f16) {
-//    ASSERT_NO_FATAL_FAILURE(test());
-//}
+TEST_P(my_softmax_test_f16, my_softmax_test_f16) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
 
 const std::vector<softmax::dimension_t> axis2D = {
     softmax::dimension_t::normalize_all,
@@ -1552,8 +1609,16 @@ INSTANTIATE_TEST_SUITE_P(my_softmax_test_f32_2d,
                          my_softmax_test_f32,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateSoftmaxParams2D<float>()),
-                                 ::testing::ValuesIn({format::bfyx/*, format::yxfb*/}),
+                                 ::testing::Values(format::bfyx),
                                  ::testing::ValuesIn(formats2D)
                                  ),
                          PrintToStringParamName());
 
+INSTANTIATE_TEST_SUITE_P(my_softmax_test_f16_2d,
+                         my_softmax_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSoftmaxParams2D<half_t>()),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::ValuesIn(formats2D)
+                                 ),
+                         PrintToStringParamName());
