@@ -15,24 +15,6 @@ ParamsKey SoftmaxKernelBlockedFyx::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
 
-    // TODO remove plain layouts after debugging
-/*
-k.EnableInputLayout(DataLayout::byxf);
-k.EnableInputLayout(DataLayout::bfyx);
-k.EnableInputLayout(DataLayout::yxfb);
-k.EnableInputLayout(DataLayout::bf);
-k.EnableInputLayout(DataLayout::fb);
-k.EnableInputLayout(DataLayout::bfzyx);
-k.EnableInputLayout(DataLayout::f);
-k.EnableOutputLayout(DataLayout::f);
-k.EnableOutputLayout(DataLayout::bfyx);
-k.EnableOutputLayout(DataLayout::byxf);
-k.EnableOutputLayout(DataLayout::yxfb);
-k.EnableOutputLayout(DataLayout::bf);
-k.EnableOutputLayout(DataLayout::fb);
-k.EnableOutputLayout(DataLayout::bfzyx);
-*/
-
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
@@ -61,44 +43,14 @@ SoftmaxKernelBlockedFyx::Parent::DispatchData SoftmaxKernelBlockedFyx::SetDefaul
                                                                                           const optional_params& optParams) const {
     auto dispatchData = Parent::SetDefault(params, optParams);
     const auto& out = params.outputs[0];
-
-    switch (params.dim) {
-        case SoftmaxDim::ALL:
-            dispatchData.gws = {1, 1, 1};
-            break;
-        case SoftmaxDim::FYX:
-            dispatchData.gws = {out.Batch().v, 1, 1};
-            break;
-
-/*
-    case SoftmaxDim::X:
-        dispatchData.gws = {out.Y().v * out.Z().v, out.Feature().v, out.Batch().v};
-        break;
-    case SoftmaxDim::Y:
-        dispatchData.gws = {out.X().v * out.Z().v, out.Feature().v, out.Batch().v};
-        break;
-    case SoftmaxDim::Z:
-        dispatchData.gws = {out.X().v * out.Y().v, out.Feature().v, out.Batch().v};
-        break;
-    case SoftmaxDim::FEATURE:
-        dispatchData.gws = {out.X().v * out.Z().v, out.Y().v, out.Batch().v};
-        break;
-    case SoftmaxDim::BATCH:
-        dispatchData.gws = {out.X().v * out.Z().v, out.Y().v, out.Feature().v};
-        break;
-*/
-        default:
-            dispatchData.gws = {1, 1, 1};
-    }
-
-    dispatchData.lws = {1, 1, 1};//GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo);
+    dispatchData.gws = {out.Batch().v, 1, 1};
+    dispatchData.lws = {1, 1, 1};
 
     return dispatchData;
 }
 
 KernelsPriority SoftmaxKernelBlockedFyx::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    // TODO bring back DONT_USE_IF_HAVE_SOMETHING_ELSE after debugging
-    return /*FORCE_PRIORITY_9*/ DONT_USE_IF_HAVE_SOMETHING_ELSE;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 KernelsData SoftmaxKernelBlockedFyx::GetKernelsData(const Params& params, const optional_params& options) const {
@@ -111,19 +63,9 @@ JitConstants SoftmaxKernelBlockedFyx::GetJitConstants(const softmax_params& para
     std::vector<std::string> idx_order;
     const auto& in = params.inputs[0];
     const auto ndims = in.GetDims().size();
-    const auto class_num = in.Feature().v * /*in.Batch().v **/ in.X().v * in.Y().v * (ndims == 5 ? in.Z().v : 1);
+    const auto class_num = in.Feature().v * in.X().v * in.Y().v * (ndims == 5 ? in.Z().v : 1);
     jit.AddConstant(MakeJitConstant("CLASS_NUM", class_num));
-
-    switch (params.dim) {
-        case SoftmaxDim::ALL:
-            idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "other0", "cls"};
-            break;
-        case SoftmaxDim::FYX:
-            idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "cls", "other0"};
-            break;
-        default:
-            break;
-    }
+    idx_order = {"other3", "other1", ndims == 5 ? "other2" : "0", "cls", "other0"};
 
     auto acc_dt = GetAccumulatorType(params);
     jit.Merge(MakeTypeJitConstants(acc_dt, "ACCUMULATOR"));

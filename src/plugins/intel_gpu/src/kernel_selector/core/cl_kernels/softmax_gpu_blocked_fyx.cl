@@ -1,11 +1,10 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/common.cl"
 
 
-//__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -20,25 +19,25 @@ KERNEL(softmax)(
     const uint b = get_global_id(0);
 
     for (uint f=0; f < INPUT0_FEATURE_NUM; ++f) {
-        #if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 5
         for (uint z=0; z < INPUT0_SIZE_Z; ++z) {
-        #endif
+#endif
             for (uint y=0; y < INPUT0_SIZE_Y; ++y) {
                 for (uint x=0; x < INPUT0_SIZE_X; ++x) {
-                    #if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 5
                     const uint index = INPUT0_GET_INDEX(b, f, z, y, x);
-                    #else
+#else
                     const uint index = INPUT0_GET_INDEX(b, f, y, x);
-                    #endif
+#endif
 
                     ACCUMULATOR_TYPE in = input[index];
                     max_value = max(max_value, in);
                     data[cls++] = in;
                 }
             }
-        #if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 5
         }
-        #endif
+#endif
     }
 
     ACCUMULATOR_TYPE denominator = 0.0;
@@ -50,30 +49,29 @@ KERNEL(softmax)(
     cls = 0;
 
     for (uint f=0; f < INPUT0_FEATURE_NUM; ++f) {
-        #if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 5
         for (uint z=0; z < INPUT0_SIZE_Z; ++z) {
-        #endif
+#endif
             for (uint y=0; y < INPUT0_SIZE_Y; ++y) {
                 for (uint x=0; x < INPUT0_SIZE_X; ++x) {
                     const ACCUMULATOR_TYPE res = data[cls++] / denominator;
 
-                    #if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 5
                     const uint output_idx = OUTPUT_GET_INDEX(b, f, z, y, x);
-                    #else
+#else
                     const uint output_idx = OUTPUT_GET_INDEX(b, f, y, x);
-                    #endif
+#endif
 
-                    #if HAS_FUSED_OPS
+#if HAS_FUSED_OPS
                     FUSED_OPS;
                     output[output_idx] = FUSED_OPS_RESULT;
-                    #else
+#else
                     output[output_idx] = ACTIVATION(res, ACTIVATION_PARAMS);
-                    #endif
+#endif
                 }
             }
-        #if INPUT0_DIMS == 5
+#if INPUT0_DIMS == 5
         }
-        #endif
+#endif
     }
-
 }

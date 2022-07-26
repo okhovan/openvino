@@ -1094,7 +1094,7 @@ INSTANTIATE_TEST_SUITE_P(DISABLED_SOFTMAX,
     softmax_test::custom_param_name);
 
 
-//*********************************************************************
+
 namespace {
 template<typename T>
 struct SoftmaxParams {

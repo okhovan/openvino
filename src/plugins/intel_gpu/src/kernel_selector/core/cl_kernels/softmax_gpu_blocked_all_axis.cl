@@ -5,7 +5,6 @@
 #include "include/batch_headers/common.cl"
 
 
-//__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output

@@ -1,16 +1,15 @@
-// Copyright (C) 2018-2022 Intel Corporation
+// Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
 #include "include/batch_headers/common.cl"
 
 
-__attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
 #if HAS_FUSED_OPS_DECLS
-, FUSED_OPS_DECLS
+    , FUSED_OPS_DECLS
 #endif
 ) {
     const uint no_offset = 0;
