@@ -1666,6 +1666,55 @@ std::vector<SoftmaxParams<T>> generateSoftmaxParams3D() {
     return result;
 }
 
+namespace {
+std::string toString(const softmax::dimension_t axis) {
+    switch(axis) {
+        case softmax::normalize_b:
+            return "B";
+        case softmax::normalize_f:
+            return "F";
+        case softmax::normalize_x:
+            return "X";
+        case softmax::normalize_y:
+            return "Y";
+        case softmax::normalize_z:
+            return "Z";
+        case softmax::normalize_fyx:
+            return "FYX";
+        case softmax::normalize_all:
+            return "ALL";
+        default:
+            return "unknown";
+    }
+}
+
+std::string toString(const format::type format) {
+
+    switch(format) {
+        case format::bfyx:
+            return "bfyx";
+        case format::b_fs_yx_fsv16:
+            return "b_fs_yx_fsv16";
+        case format::b_fs_yx_fsv32:
+            return "b_fs_yx_fsv32";
+        case format::bs_fs_yx_bsv16_fsv16:
+            return "bs_fs_yx_bsv16_fsv16";
+        case format::bs_fs_yx_bsv32_fsv16:
+            return "bs_fs_yx_bsv32_fsv16";
+        case format::bs_fs_yx_bsv32_fsv32:
+            return "bs_fs_yx_bsv32_fsv32";
+        case format::bfzyx:
+            return "bfzyx";
+        case format::b_fs_zyx_fsv16:
+            return "b_fs_zyx_fsv16";
+        case format::bs_fs_zyx_bsv16_fsv16:
+            return "bs_fs_zyx_bsv16_fsv16";
+        default:
+            return std::to_string(format);
+    }
+}
+};
+
 struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<SoftmaxParamsWithFormat<T> > &param) {
@@ -1675,9 +1724,9 @@ struct PrintToStringParamName {
         format::type target_format;
         std::tie(p, plain_format, target_format) = param.param;
         buf << "_inputTensor=" << p.input_tensor.to_string()
-            << "_axis=" << p.axis
-            << "_plainFormat=" << plain_format
-            << "_targetFormat=" << target_format;
+            << "_axis=" << toString(p.axis)
+            << "_plainFormat=" << toString(plain_format)
+            << "_targetFormat=" << toString(target_format);
         return buf.str();
     }
 };
