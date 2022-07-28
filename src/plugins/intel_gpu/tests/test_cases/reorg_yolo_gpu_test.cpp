@@ -28,7 +28,8 @@ struct ReorgYoloParams {
 template<typename T>
 using ReorgYoloParamsWithLayout = std::tuple<
     ReorgYoloParams<T>,
-    format::type        // blocked layout
+    format::type,       // blocked layout
+    bool                // should_fail
 >;
 
 const std::vector<format::type> dataFormats = {
@@ -162,50 +163,56 @@ std::vector<ReorgYoloParams<T>> generateParams() {
                 121.0f, 123.0f, 125.0f, 127.0f, 80.0f, 82.0f, 84.0f, 86.0f, 96.0f, 98.0f,
                 100.0f, 102.0f, 112.0f, 114.0f, 116.0f, 118.0f, 128.0f, 130.0f, 132.0f, 134.0f,
             }),
-        }
+        },
     };
     return result;
 }
 
 template<typename T>
-std::vector<ReorgYoloParams<T>> generateErrorParams() {
+std::vector<ReorgYoloParams<T>> generateInvalidParams() {
     static const std::vector<ReorgYoloParams<T>> result = {
-        {
-            tensor(1, 2, 7, 3),
-            getValues<T>({0, 4, 1, 3, -2, -5, -2, -2, 1, -3, 1, -3, -4, 0, -2, 1, -1, -2, 3, -1, -3,
-                          -1, -2, 3, 4, -3, -4, 1, 2, 0, -4, -5, -2, -2, -3, 2, 3, 1, -5, 2, -4, -2}),
-            4,
-            getValues<T>({0, 4, 1, 3, -2, -5, -2, -2, 1, -3, 1, -3, -4, 0, -2, 1, -1, -2, 3, -1, -3,
-                          -1, -2, 3, 4, -3, -4, 1, 2, 0, -4, -5, -2, -2, -3, 2, 3, 1, -5, 2, -4, -2})
+        { // Feature < stride*stride
+            tensor{1, 3, 4, 4},
+            getValues<T>({
+                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
+                11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f,
+                31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f,
+                41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f,
+            }),
+            2,
+            getValues<T>({}),
         },
-        {
-            tensor(1, 3, 10, 7),
-            getValues<T>(
-                    {-2, -3, -4, 3, -5, 4, 0, -4, -2, -4, -5, 0, -3, 0, -2, 0, 0, -5, -4, -1, 3, -1, 0, -1,
-                     0, -2, 0, 4, 1, 4, 0, -1, -4, 2, -2, -5, -1, -1, -2, 1, 2, -2, -1, 2, 0, -1, 0, -5,
-                     4, 4, 3, 0, -4, -4, -4, -2, 0, 1, -2, -1, 4, -2, -4, 1, -1, -3, -4, -1, 1, -4,
-
-                     -2, -4, -5, 0, -4, 3, 4, -5, -4, -2, 0, 2, -4, -3, 3, -1, 1, -4, -5, 4, 2, -5, 2, -3,
-                     0, 4, 3, 3, 1, 2, -1, -4, 1, -3, -3, -2, 3, 4, -2, -5, 1, 4, 4, -2, 2, 1, -5, -2,
-                     -5, 1, 1, -2, -3, -3, -1, -5, 1, -3, -5, -3, -4, -1, 4, -3, 4, -1, 4, 3, 1, 4,
-
-                     -2, -4, -4, 4, -3, 4, 2, -3, -2, 4, -3, 0, 1, -4, 4, 4, 0, 3, -1, 3, 3, -5, 0, 3,
-                     -3, 1, -2, 4, -5, -5, 1, 0, -1, 0, -3, -2, 0, -3, 3, -2, -2, 0, -3, 4, -1, 2, -2, 2,
-                     -3, -1, -4, -2, 0, 2, 0, 2, 0, -3, 4, 3, -5, -3, -5, 1, -5, -3, -5, 4, -3, 3}),
-            6,
-            getValues<T>(
-                    {-2, -3, -4, 3, -5, 4, 0, -4, -2, -4, -5, 0, -3, 0, -2, 0, 0, -5, -4, -1, 3, -1, 0, -1,
-                     0, -2, 0, 4, 1, 4, 0, -1, -4, 2, -2, -5, -1, -1, -2, 1, 2, -2, -1, 2, 0, -1, 0, -5,
-                     4, 4, 3, 0, -4, -4, -4, -2, 0, 1, -2, -1, 4, -2, -4, 1, -1, -3, -4, -1, 1, -4,
-
-                     -2, -4, -5, 0, -4, 3, 4, -5, -4, -2, 0, 2, -4, -3, 3, -1, 1, -4, -5, 4, 2, -5, 2, -3,
-                     0, 4, 3, 3, 1, 2, -1, -4, 1, -3, -3, -2, 3, 4, -2, -5, 1, 4, 4, -2, 2, 1, -5, -2,
-                     -5, 1, 1, -2, -3, -3, -1, -5, 1, -3, -5, -3, -4, -1, 4, -3, 4, -1, 4, 3, 1, 4,
-
-                     -2, -4, -4, 4, -3, 4, 2, -3, -2, 4, -3, 0, 1, -4, 4, 4, 0, 3, -1, 3, 3, -5, 0, 3,
-                     -3, 1, -2, 4, -5, -5, 1, 0, -1, 0, -3, -2, 0, -3, 3, -2, -2, 0, -3, 4, -1, 2, -2, 2,
-                     -3, -1, -4, -2, 0, 2, 0, 2, 0, -3, 4, 3, -5, -3, -5, 1, -5, -3, -5, 4, -3, 3})
-        }
+        { // Height % stride != 0
+            tensor{1, 4, 5, 4},
+            getValues<T>({
+                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
+                11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f,
+                31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f,
+                41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f, 49.0f, 50.0f,
+                51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f, 57.0f, 58.0f, 59.0f, 60.0f,
+                61.0f, 62.0f, 63.0f, 64.0f, 65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f,
+                71.0f, 72.0f, 73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f,
+            }),
+            2,
+            getValues<T>({}),
+        },
+        { // Width % stride != 0
+            tensor{1, 4, 4, 5},
+            getValues<T>({
+                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f,
+                11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f,
+                21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f,
+                31.0f, 32.0f, 33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f,
+                41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f, 49.0f, 50.0f,
+                51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f, 57.0f, 58.0f, 59.0f, 60.0f,
+                61.0f, 62.0f, 63.0f, 64.0f, 65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f,
+                71.0f, 72.0f, 73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f,
+            }),
+            2,
+            getValues<T>({}),
+        },
     };
     return result;
 }
@@ -216,7 +223,8 @@ struct PrintToStringParamName {
         std::stringstream buf;
         ReorgYoloParams<T> p;
         format::type target_format;
-        std::tie(p, target_format) = param.param;
+        bool should_fail;
+        std::tie(p, target_format, should_fail) = param.param;
         buf << "InputTensor=" << p.inputTensor.to_string()
             << ".stride=" << p.stride
             << ".TargetLayout=" << target_format;
@@ -229,12 +237,23 @@ template<typename T>
 struct reorg_yolo_test
         : public ::testing::TestWithParam<ReorgYoloParamsWithLayout<T> > {
 public:
-    void test(bool expect_error = false) {
-        const auto data_type = type_to_data_type<T>::value;
+    void test() {
         ReorgYoloParams<T> params;
-        const format::type plain_format = format::bfyx;
         format::type target_format;
-        std::tie(params,  target_format) = this->GetParam();
+        bool should_fail;
+        std::tie(params, target_format, should_fail) = this->GetParam();
+
+        if (should_fail) {
+            ASSERT_THROW(run_test(params, target_format), std::invalid_argument);
+        } else {
+            ASSERT_NO_FATAL_FAILURE(run_test(params, target_format));
+        }
+    }
+
+private:
+    void run_test(const ReorgYoloParams<T> params, const format::type target_format) {
+        const auto data_type = type_to_data_type<T>::value;
+        const format::type plain_format = format::bfyx;
 
         auto& engine = get_test_engine();
 
@@ -251,11 +270,6 @@ public:
         network network(engine, topology);
         network.set_input_data("input", input);
         const auto result = network.execute();
-
-        if (expect_error) {
-            //do smth
-        }
-
 
         auto out_mem = result.at("reorg_yolo_reordered").get_memory();
         cldnn::mem_lock<T> out_ptr(out_mem, get_test_stream());
@@ -274,36 +288,36 @@ public:
 using test_f32 = reorg_yolo_test<float>;
 using test_f16 = reorg_yolo_test<half_t>;
 
-TEST_P(test_f32, valid) {
-    ASSERT_NO_FATAL_FAILURE(test());
+TEST_P(test_f32, basic) {
+    test();
 }
 
-TEST_P(test_f16, valid) {
-    ASSERT_NO_FATAL_FAILURE(test());
+TEST_P(test_f16, basic) {
+    test();
 }
 
-//TEST_P(test_f32, invalid) {
-//    EXPECT_THROW(test(true), std::invalid_argument);
-//}
 
 
 INSTANTIATE_TEST_SUITE_P(reorg_yolo_f32,
                          test_f32,
                          ::testing::Combine(
                                  ::testing::ValuesIn(generateParams<float>()),
-                                 ::testing::ValuesIn(dataFormats)),
+                                 ::testing::ValuesIn(dataFormats),
+                                 ::testing::Values(false)),
                          PrintToStringParamName());
 
-//INSTANTIATE_TEST_SUITE_P(reorg_yolo_f16,
-//                         test_f16,
-//                         ::testing::Combine(
-//                                 ::testing::ValuesIn(generateParams<half_t>()),
-//                                 ::testing::ValuesIn(dataFormats)),
-//                         PrintToStringParamName());
-//
-//INSTANTIATE_TEST_SUITE_P(reorg_yolo_invalid_input,
-//                         test_f32,
-//                         ::testing::Combine(
-//                                 ::testing::ValuesIn(generateErrorParams<float>()),
-//                                 ::testing::Values(format::bfyx)),
-//                         PrintToStringParamName());
+INSTANTIATE_TEST_SUITE_P(reorg_yolo_f16,
+                         test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateParams<half_t>()),
+                                 ::testing::ValuesIn(dataFormats),
+                                 ::testing::Values(false)),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(reorg_yolo_invalid_input,
+                         test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateInvalidParams<float>()),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(true)),
+                         PrintToStringParamName());
