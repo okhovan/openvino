@@ -34,13 +34,13 @@ using ReorgYoloParamsWithLayout = std::tuple<
 
 const std::vector<format::type> dataFormats = {
     format::bfyx,
-/*
+    //format::yxfb,
+    //format::byxf,
     format::b_fs_yx_fsv16,
     format::b_fs_yx_fsv32,
     format::bs_fs_yx_bsv16_fsv16,
     format::bs_fs_yx_bsv32_fsv16,
     format::bs_fs_yx_bsv32_fsv32
-*/
 };
 
 template<typename T>
@@ -217,6 +217,31 @@ std::vector<ReorgYoloParams<T>> generateInvalidParams() {
     return result;
 }
 
+std::string toString(const format::type format) {
+    switch(format) {
+        case format::bfyx:
+            return "bfyx";
+        case format::b_fs_yx_fsv16:
+            return "b_fs_yx_fsv16";
+        case format::b_fs_yx_fsv32:
+            return "b_fs_yx_fsv32";
+        case format::bs_fs_yx_bsv16_fsv16:
+            return "bs_fs_yx_bsv16_fsv16";
+        case format::bs_fs_yx_bsv32_fsv16:
+            return "bs_fs_yx_bsv32_fsv16";
+        case format::bs_fs_yx_bsv32_fsv32:
+            return "bs_fs_yx_bsv32_fsv32";
+        case format::bfzyx:
+            return "bfzyx";
+        case format::b_fs_zyx_fsv16:
+            return "b_fs_zyx_fsv16";
+        case format::bs_fs_zyx_bsv16_fsv16:
+            return "bs_fs_zyx_bsv16_fsv16";
+        default:
+            return std::to_string(format);
+    }
+}
+
 struct PrintToStringParamName {
     template<class T>
     std::string operator()(const testing::TestParamInfo<ReorgYoloParamsWithLayout<T> > &param) {
@@ -227,7 +252,7 @@ struct PrintToStringParamName {
         std::tie(p, target_format, should_fail) = param.param;
         buf << "InputTensor=" << p.inputTensor.to_string()
             << ".stride=" << p.stride
-            << ".TargetLayout=" << target_format;
+            << ".TargetLayout=" << toString(target_format);
         return buf.str();
     }
 };
