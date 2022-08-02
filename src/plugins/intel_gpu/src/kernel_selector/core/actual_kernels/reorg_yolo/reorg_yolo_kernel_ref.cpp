@@ -38,7 +38,7 @@ ReorgYoloKernelRef::DispatchData SetDefault(const reorg_yolo_params& params) {
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws;
 
     const auto& input = params.inputs[0];
-    if (input.GetLayout() == DataLayout::bfyx) {
+    if (input.GetLayout() != DataLayout::yxfb) {
         dispatchData.gws = {input.X().v, input.Y().v, input.Feature().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y},
