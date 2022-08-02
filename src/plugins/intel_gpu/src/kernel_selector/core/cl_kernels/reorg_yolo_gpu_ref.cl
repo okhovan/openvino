@@ -33,14 +33,17 @@ inline void FUNC(planar_to_bfyx)(const uint dstPlanarIndex,
                                  uint* dstB, uint* dstC, uint* dstY, uint* dstX)
 {
     if(dstPlanarIndex < width) {
+        *dstB = 0;
         *dstC = 0;
         *dstY = 0;
         *dstX = dstPlanarIndex;
     } else if(dstPlanarIndex < height * width) {
+        *dstB = 0;
         *dstC = 0;
         *dstY = dstPlanarIndex / width;
         *dstX = dstPlanarIndex % width;
     } else if(dstPlanarIndex < channel_num * height * width) {
+        *dstB = 0;
         *dstC = dstPlanarIndex / (height * width);
         uint dstXY = dstPlanarIndex % (height * width);
         *dstY = dstXY / width;
@@ -67,14 +70,8 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
 
     for (int b = 0; b < B; b++) {
         const uint dstPlanarIndex = b*IC*IH*IW + ic*IH*IW + ih*IW + iw;
-
-        uint dstB = b;
-        uint dstC;
-        uint dstY;
-        uint dstX;
-
+        uint dstB, dstC, dstY, dstX;
         FUNC_CALL(planar_to_bfyx)(dstPlanarIndex, B, OC, OH, OW, &dstB, &dstC, &dstY, &dstX);
-
         const uint dstIndex = OUTPUT_GET_INDEX(dstB, dstC, dstY, dstX);
 
         int oc = ic % ic_off; // 0, 0, 0, 0
@@ -86,48 +83,17 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
         int ow = iw * STRIDE + rem;
         int oh = ih * STRIDE + div;
 
-        int srcIndex = b*ic_off*ih_off*iw_off + oc*ih_off*iw_off + oh*iw_off + ow;
+        int srcPlanarIndex = b*ic_off*ih_off*iw_off + oc*ih_off*iw_off + oh*iw_off + ow;
+        uint srcB, srcC, srcY, srcX;
+        FUNC_CALL(planar_to_bfyx)(srcPlanarIndex, B, IC, IH, IW, &srcB, &srcC, &srcY, &srcX);
+        const uint srcIndex = INPUT0_GET_INDEX(srcB, srcC, srcY, srcX);
 
-        printf("src %d dstPlanar %d dst %d\n",
-               srcIndex, dstPlanarIndex, dstIndex);
+        //printf("src %d dstPlanar %d dst %d\n", srcIndex, dstPlanarIndex, dstIndex);
 
-        output[/*dstPlanarIndex*/dstIndex] = input[srcIndex];
+        output[/*dstPlanarIndex*/dstIndex] = input[/*srcPlanarIndex*/srcIndex];
     }
 
 
-
-
-/*
-    const uint new_number_of_channels = IC * STRIDE * STRIDE;
-    const uint new_heigth = IH / STRIDE;
-    const uint new_width = IW / STRIDE;
-
-    const uint b = 0;
-uint cnt = 0;
-    for(uint channel = 0; channel < IC; ++channel) {
-        for(uint input_x = 0; input_x < IW; input_x += STRIDE) {
-            for(uint input_y = 0; input_y < IH; input_y += STRIDE) {
-                for(uint i = 0; i < STRIDE; ++i) {
-                    for(uint j = 0; j < STRIDE; ++j) {
-                        const uint input_idx =  INPUT0_GET_INDEX(b, channel, input_y + j, input_x + i);
-
-                        const uint new_channel = channel*STRIDE*STRIDE + i*STRIDE + j;
-
-                        const uint output_idx = OUTPUT_GET_INDEX(b, new_channel, input_y/STRIDE, input_x/STRIDE);
-
-                        output[output_idx] = input[input_idx];
-                        printf("%d: %d -> %d, %d %d %d %d - %d -> %d = %f\n",
-                                 cnt,
-                                 channel, new_channel,
-                                 input_y, input_x, j, i,
-                                 input_idx, output_idx, input[input_idx]);
-                        ++cnt;
-                    }
-                }
-            }
-        }
-    }
-*/
 
 //#if OUTPUT_LAYOUT_BFYX
 //    int ic = get_global_id(2);
