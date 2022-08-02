@@ -28,6 +28,33 @@
 #define ih_off (IH * STRIDE)
 #define iw_off (IW * STRIDE)
 
+inline void FUNC(planar_to_bfyx)(const uint dstPlanarIndex,
+                                 const uint batch_num, const uint channel_num, const uint height, const uint width,
+                                 uint* dstB, uint* dstC, uint* dstY, uint* dstX)
+{
+    if(dstPlanarIndex < width) {
+        *dstC = 0;
+        *dstY = 0;
+        *dstX = dstPlanarIndex;
+    } else if(dstPlanarIndex < height * width) {
+        *dstC = 0;
+        *dstY = dstPlanarIndex / width;
+        *dstX = dstPlanarIndex % width;
+    } else if(dstPlanarIndex < channel_num * height * width) {
+        *dstC = dstPlanarIndex / (height * width);
+        uint dstXY = dstPlanarIndex % (height * width);
+        *dstY = dstXY / width;
+        *dstX = dstXY % width;
+    } else if(dstPlanarIndex >= channel_num * height * width) {
+        *dstB = dstPlanarIndex / (channel_num * height * width);
+        uint dstCXY = dstPlanarIndex % (channel_num * height * width);
+        *dstC = dstCXY / (height * width);
+        uint dstXY = dstCXY % (height * width);
+        *dstY = dstXY / width;
+        *dstX = dstXY % width;
+    }
+}
+
 KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* output)
 {
     int ic = get_global_id(2);
@@ -38,7 +65,6 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
     const uint OH = IH / STRIDE;
     const uint OW = IW / STRIDE;
 
-
     for (int b = 0; b < B; b++) {
         const uint dstPlanarIndex = b*IC*IH*IW + ic*IH*IW + ih*IW + iw;
 
@@ -47,27 +73,8 @@ KERNEL (reorg_yolo_ref)(const __global UNIT_TYPE* input, __global UNIT_TYPE* out
         uint dstY;
         uint dstX;
 
-        if(dstPlanarIndex < OW) {
-            dstC = 0;
-            dstY = 0;
-            dstX = dstPlanarIndex;
-        } else if(dstPlanarIndex < OH * OW) {
-            dstC = 0;
-            dstY = dstPlanarIndex / OW;
-            dstX = dstPlanarIndex % OW;
-        } else if(dstPlanarIndex < OC * OH * OW) {
-            dstC = dstPlanarIndex / (OH * OW);
-            uint dstXY = dstPlanarIndex % (OH * OW);
-            dstY = dstXY / OW;
-            dstX = dstXY % OW;
-        } else if(dstPlanarIndex >= OC * OH * OW) {
-            dstB = dstPlanarIndex / (OC * OH * OW);
-            uint dstCXY = dstPlanarIndex % (OC * OH * OW);
-            dstC = dstCXY / (OH * OW);
-            uint dstXY = dstCXY % (OH * OW);
-            dstY = dstXY / OW;
-            dstX = dstXY % OW;
-        }
+        FUNC_CALL(planar_to_bfyx)(dstPlanarIndex, B, OC, OH, OW, &dstB, &dstC, &dstY, &dstX);
+
         const uint dstIndex = OUTPUT_GET_INDEX(dstB, dstC, dstY, dstX);
 
         int oc = ic % ic_off; // 0, 0, 0, 0
