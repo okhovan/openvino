@@ -163,23 +163,71 @@ std::vector<SEUParams<T>> generateSEUParams2D() {
     const std::vector<SEUParams<T>> result = {
         {   1,
             // data
-            tensor(2, 4, 1, 1),
-            getValues<T>({
-                3, 6, 5, 4,
-                1, 7, 2, 9}),
+            tensor{2, 4, 1, 1},
+            getValues<T>({ 0, 1, 2, 3, 4, 5, 6, 7 }),
             // indices
-            tensor(2, 2, 1, 1),
-            getValues<T>({
-                0, 1,
-                2, 3}),
+            tensor{2, 2, 1, 1},
+            getValues<T>({ 0, 1, 2, 3 }),
             // updates
-            getValues<T>({
-                10, 11,
-                12, 13}),
+            getValues<T>({ -10, -11, -12, -13 }),
             // expected
-            getValues<T>({
-                10, 11, 5, 4,
-                1, 7, 12, 13})
+            getValues<T>({ -10, -11, 2, 3, 4, 5, -12, -13 })
+        },
+        {   2,
+            // data
+            tensor{2, 1, 2, 2},
+            getValues<T>({ 0, 1, 2, 3, 4, 5, 6, 7 }),
+            // indices
+            tensor{2, 1, 2, 1},
+            getValues<T>({ 0, 1, 0, 1 }),
+            // updates
+            getValues<T>({ -10, -11, -12, -13 }),
+            // expected
+            getValues<T>({ -10, 1, 2, -11, -12, 5, 6, -13 })
+        },
+        {   3,
+            // data
+            tensor{2, 1, 2, 2},
+            getValues<T>({ 0, 1, 2, 3, 4, 5, 6, 7 }),
+            // indices
+            tensor{2, 1, 1, 2},
+            getValues<T>({ 0, 1, 0, 1 }),
+            // updates
+            getValues<T>({ -10, -11, -12, -13 }),
+            // expected
+            getValues<T>({ -10, 1, 2, -11, -12, 5, 6, -13 })
+        },
+    };
+
+    return result;
+}
+
+template<typename T>
+std::vector<SEUParams<T>> generateSEUParams3D() {
+    const std::vector<SEUParams<T>> result = {
+        {   1,
+            // data
+            tensor{2, 4, 1, 1, 2},
+            getValues<T>({ 3, 6, 5, 4, 1, 7, 2, 9, 1, 22, 13, 4, 14, 18, 5, 7 }),
+            // indices
+            tensor{2, 2, 1, 1, 1},
+            getValues<T>({ 0, 1, 2, 4,  }),
+            // updates
+            getValues<T>({ 10, 11, 12, 13 }),
+            // expected
+            getValues<T>({ 10, 11, 5, 4, 1, 7, 12, 13 })
+        },
+        {   3,
+            // data
+            tensor{2, 4, 1, 1},
+            getValues<T>({ 3, 6, 5, 4, 1, 7, 2, 9 }),
+            // indices
+            tensor{2, 2, 1, 1},
+            getValues<T>({ 0, 1, 2, 3 }),
+            // updates
+            getValues<T>({ 10, 11, 12, 13 }),
+            // expected
+            getValues<T>({ 10, 6, 11, 4, 1, 7, 12, 9 })
         },
     };
 
@@ -294,7 +342,10 @@ public:
         ASSERT_EQ(params.data.size(), output_ptr.size());
         ASSERT_EQ(params.expected.size(), output_ptr.size());
         for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << "format=" << toString(target_format) << ", i=" << i;
+            EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>())
+                << "format=" << toString(target_format) << ", i=" << i;
+
+//            std::cout << static_cast<int>(output_ptr[i]) << ", ";        getError<T>();
         }
     }
 };
