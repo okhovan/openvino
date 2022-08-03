@@ -38,7 +38,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 endif()
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino_intel_gpu_graph
-                                             ngraph_reference
                                              inference_engine
                                              OpenCL
                                              gtest
