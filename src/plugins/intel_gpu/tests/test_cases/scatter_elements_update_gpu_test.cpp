@@ -3,6 +3,7 @@
 //
 
 #include "test_utils.h"
+#include "ngraph/runtime/reference/scatter_elements_update.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/scatter_elements_update.hpp>
@@ -141,10 +142,10 @@ float getError<float>() {
     return 0.001;
 }
 
-template<>
-float getError<half_t>() {
-    return 0.2;
-}
+//template<>
+//float getError<half_t>() {
+//    return 0.2;
+//}
 
 std::string toString(const format::type format) {
     switch(format) {
@@ -241,20 +242,57 @@ public:
             EXPECT_NEAR(output_ptr[i], params.expected[i], getError<T>())
                 << "format=" << toString(target_format) << ", i=" << i;
         }
+
+        compare_with_ref();
+    }
+
+private:
+    void compare_with_ref() {
+        ScatterElementsUpdateParams<T> params;
+        format::type plain_format;
+        format::type target_format;
+
+        std::tie(params, plain_format, target_format) = this->GetParam();
+
+        std::vector<int> input_vec(static_cast<int>(cldnn::format::dimension(plain_format)));
+        for (size_t i = 0; i < input_vec.size(); ++i)
+            input_vec[i] = static_cast<int>(params.data_tensor.sizes()[i]);
+        std::reverse(input_vec.begin() + 2, input_vec.end());
+
+        std::vector<int> indices_vec(static_cast<int>(cldnn::format::dimension(plain_format)));
+        for (size_t i = 0; i < indices_vec.size(); ++i)
+            indices_vec[i] = static_cast<int>(params.indices_tensor.sizes()[i]);
+        std::reverse(indices_vec.begin() + 2, indices_vec.end());
+
+        auto outputs_ref = std::vector<T>(params.data.size());
+        ngraph::runtime::reference::scatter_elem_update<T, T>(
+            params.data.data(),
+            params.indices.data(),
+            params.updates.data(),
+            params.axis,
+            outputs_ref.data(),
+            ov::Shape(input_vec.begin(), input_vec.end()),
+            ov::Shape(indices_vec.begin(), indices_vec.end())
+        );
+
+        for (size_t i = 0; i < outputs_ref.size(); ++i) {
+            EXPECT_EQ(outputs_ref[i], params.expected[i])
+                << "format=" << toString(target_format) << ", i=" << i;
+        }
     }
 };
 
 using scatter_elements_update_gpu_formats_test_f32 = scatter_elements_update_gpu_formats_test<float>;
-using scatter_elements_update_gpu_formats_test_f16 = scatter_elements_update_gpu_formats_test<half_t>;
+//using scatter_elements_update_gpu_formats_test_f16 = scatter_elements_update_gpu_formats_test<half_t>;
 using scatter_elements_update_gpu_formats_test_i32 = scatter_elements_update_gpu_formats_test<int32_t>;
 
 TEST_P(scatter_elements_update_gpu_formats_test_f32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-TEST_P(scatter_elements_update_gpu_formats_test_f16, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
-}
+//TEST_P(scatter_elements_update_gpu_formats_test_f16, basic) {
+//    ASSERT_NO_FATAL_FAILURE(test());
+//}
 
 TEST_P(scatter_elements_update_gpu_formats_test_i32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
@@ -270,14 +308,14 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f32_2d,
                          ),
                          PrintToStringParamName());
 
-INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f16_2d,
-                         scatter_elements_update_gpu_formats_test_f16,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<half_t>()),
-                                 ::testing::Values(format::bfyx),
-                                 ::testing::ValuesIn(formats2D)
-                         ),
-                         PrintToStringParamName());
+//INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f16_2d,
+//                         scatter_elements_update_gpu_formats_test_f16,
+//                         ::testing::Combine(
+//                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<half_t>()),
+//                                 ::testing::Values(format::bfyx),
+//                                 ::testing::ValuesIn(formats2D)
+//                         ),
+//                         PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_i32_2d,
                          scatter_elements_update_gpu_formats_test_i32,
