@@ -207,27 +207,27 @@ std::vector<SEUParams<T>> generateSEUParams3D() {
     const std::vector<SEUParams<T>> result = {
         {   1,
             // data
-            tensor{2, 4, 1, 1, 2},
-            getValues<T>({ 3, 6, 5, 4, 1, 7, 2, 9, 1, 22, 13, 4, 14, 18, 5, 7 }),
+            tensor{2, 4, 1, 1, 3},
+            getValues<T>({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 }),
             // indices
-            tensor{2, 2, 1, 1, 1},
-            getValues<T>({ 0, 1, 2, 4,  }),
+            tensor{2, 1, 1, 1, 2},
+            getValues<T>({ 0, 3, 1, 2 }),
             // updates
-            getValues<T>({ 10, 11, 12, 13 }),
+            getValues<T>({ -100, -110, -120, -130 }),
             // expected
-            getValues<T>({ 10, 11, 5, 4, 1, 7, 12, 13 })
+            getValues<T>({ -100, 1, 2, 3, 4, 5, 6, 7, 8, 9, -110, 11, 12, 13, 14, -120, 16, 17, 18, -130, 20, 21, 22, 23 })
         },
-        {   3,
+        {   4,
             // data
-            tensor{2, 4, 1, 1},
-            getValues<T>({ 3, 6, 5, 4, 1, 7, 2, 9 }),
+            tensor{2, 4, 1, 1, 3},
+            getValues<T>({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23 }),
             // indices
-            tensor{2, 2, 1, 1},
-            getValues<T>({ 0, 1, 2, 3 }),
+            tensor{2, 1, 1, 1, 2},
+            getValues<T>({ 0, 1, 0, 1 }),
             // updates
-            getValues<T>({ 10, 11, 12, 13 }),
+            getValues<T>({ -100, -110, -120, -130 }),
             // expected
-            getValues<T>({ 10, 6, 11, 4, 1, 7, 12, 9 })
+            getValues<T>({ -100, 1, -110, 3, 4, 5, 6, 7, 8, 9, 10, 11, -120, 13, -130, 15, 16, 17, 18, 19, 20, 21, 22, 23 })
         },
     };
 
@@ -373,7 +373,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f32_2d,
                                  ::testing::ValuesIn(generateSEUParams2D<float>()),
                                  ::testing::Values(format::bfyx),
                                  ::testing::ValuesIn(formats2D)
-                                 ),
+                         ),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f16_2d,
@@ -382,7 +382,7 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f16_2d,
                                  ::testing::ValuesIn(generateSEUParams2D<half_t>()),
                                  ::testing::Values(format::bfyx),
                                  ::testing::ValuesIn(formats2D)
-                                 ),
+                         ),
                          PrintToStringParamName());
 
 INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_i32_2d,
@@ -391,5 +391,32 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_i32_2d,
                                  ::testing::ValuesIn(generateSEUParams2D<int32_t>()),
                                  ::testing::Values(format::bfyx),
                                  ::testing::ValuesIn(formats2D)
-                                 ),
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f32_3d,
+                         scatter_elements_update_gpu_formats_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSEUParams3D<float>()),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::ValuesIn(formats3D)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_f16_3d,
+                         scatter_elements_update_gpu_formats_test_f16,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSEUParams3D<half_t>()),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::ValuesIn(formats3D)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_i32_3d,
+                         scatter_elements_update_gpu_formats_test_i32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateSEUParams3D<int32_t>()),
+                                 ::testing::Values(format::bfzyx),
+                                 ::testing::ValuesIn(formats3D)
+                         ),
                          PrintToStringParamName());
