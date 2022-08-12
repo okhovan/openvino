@@ -96,15 +96,17 @@ static std::string GetUpdatesIndexOrder(const scatter_update_params& params) {
 CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_params& params, const optional_params&, bool is_second) const {
     CommonDispatchData dispatchData;
     const auto& output = params.outputs[0];
+    const auto rank = output.GetDims().size();
+
     if (!is_second) {
-        switch (output.GetLayout()) {
-            case DataLayout::bfyx:
+        switch (rank) {
+            case 4:
                dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
                break;
-            case DataLayout::bfzyx:
+            case 5:
                dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
                break;
-            case DataLayout::bfwzyx:
+            case 6:
                dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * output.Batch().v};
                break;
             default:
@@ -118,8 +120,8 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
         // Instead, we reconsider update2's dimension with input1's shape which is shrinked as 1d.
         // e.g., axis = b, input0(10, 9, 10, 9, 10) && input1(4, 2) => input2(8, 9, 10, 9, 10
         const size_t indices_size = params.inputs[1].LogicalSize();
-        switch (output.GetLayout()) {
-            case DataLayout::bfyx:
+        switch (rank) {
+            case 4:
                 if (params.axis == ScatterUpdateAxis::BATCH)
                     dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * indices_size};
                 else if (params.axis == ScatterUpdateAxis::FEATURE)
@@ -129,7 +131,7 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
                 else if (params.axis == ScatterUpdateAxis::X)
                      dispatchData.gws = {indices_size, output.Y().v, output.Feature().v * output.Batch().v};
                 break;
-            case DataLayout::bfzyx:
+            case 5:
                 if (params.axis == ScatterUpdateAxis::BATCH)
                     dispatchData.gws = {output.X().v * output.Y().v, output.Z().v, output.Feature().v * indices_size};
                 else if (params.axis == ScatterUpdateAxis::FEATURE)
@@ -141,7 +143,7 @@ CommonDispatchData ScatterUpdateKernelRef::SetDefault(const scatter_update_param
                 else if (params.axis == ScatterUpdateAxis::X)
                     dispatchData.gws = {indices_size * output.Y().v, output.Z().v, output.Feature().v * output.Batch().v};
                 break;
-            case DataLayout::bfwzyx:
+            case 6:
                 if (params.axis == ScatterUpdateAxis::BATCH)
                     dispatchData.gws = {output.X().v * output.Y().v, output.Z().v * output.W().v, output.Feature().v * indices_size};
                 else if (params.axis == ScatterUpdateAxis::FEATURE)
@@ -253,15 +255,15 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
         return {};
     }
 
-    const scatter_update_params& orgParams = static_cast<const scatter_update_params&>(params);
-    const size_t indices_size = orgParams.inputs[1].LogicalSize();
+//    const scatter_update_params& orgParams = static_cast<const scatter_update_params&>(params);
+//    const size_t indices_size = orgParams.inputs[1].LogicalSize();
     int start_with_iteration = 0;
 
     // if dim of output along axis is equal to logical size of indices, we miss copying kernel
-    if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis),
-                                    orgParams.inputs[0].GetDims()).v == indices_size) {
-        start_with_iteration = 1;
-    }
+//    if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis),
+//                                    orgParams.inputs[0].GetDims()).v == indices_size) {
+//        start_with_iteration = 1;
+//    }
 
     KernelData kd = KernelData::Default<scatter_update_params>(params, (2 - start_with_iteration));
     scatter_update_params& newParams = *static_cast<scatter_update_params*>(kd.params.get());

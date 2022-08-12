@@ -209,6 +209,8 @@ JitDefinitions JitConstants::GetDefinitions() const {
         auto def = constant->GetDefinitions();
         definitons.insert(definitons.end(), def.begin(), def.end());
     }
+
+    DUMP_JIT_DEFINITIONS(definitons)
     return definitons;
 }
 
@@ -249,6 +251,7 @@ public:
             {_name + "_PAD_AFTER",
              toVectorString(t.GetDims(), "size_t", KERNEL_SELECTOR_TENSOR_DIM_MAX, 0, [](const Tensor::Dim& d) { return d.pad.after; })});
 
+        DUMP_JIT_DEFINITIONS(definitions)
         return definitions;
     }
 };
@@ -508,6 +511,7 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
 
     definitions.insert(definitions.end(), baseDefinitions.begin(), baseDefinitions.end());
 
+    DUMP_JIT_DEFINITIONS(definitions)
     return definitions;
 }
 
@@ -888,6 +892,8 @@ JitDefinitions WeightTensorJitConstant::GetDefinitions() const {
         definitions.push_back({ indexFuncDesc.macroName, indexFuncDesc.macroBody });
         definitions.push_back({ index_macro_name, index_func_val });
     }
+
+    DUMP_JIT_DEFINITIONS(definitions)
     return definitions;
 }
 

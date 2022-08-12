@@ -16,6 +16,18 @@
 #include <utility>
 #include <locale>
 
+#define DUMP_JIT_VALUES
+#ifdef DUMP_JIT_VALUES
+    #define DUMP_JIT_DEFINITIONS(definitions) \
+        { \
+            const auto t = pthread_self(); \
+            for (const auto& d : (definitions)) { \
+                std::printf("[%lu] %s=%s\n", t, d.first.c_str(), d.second.c_str()); \
+            } \
+        }
+#else
+    #define DUMP_JIT_DEFINITIONS(definitions)
+#endif
 namespace kernel_selector {
 
 struct base_params;
@@ -89,6 +101,7 @@ std::string toCodeString(T val) {
 inline std::string toCodeString(const std::string& val) { return val; }
 inline std::string toCodeString(const char* val) { return val; }
 inline std::string toCodeString(bool val) { return val ? "1" : "0"; }
+inline std::string toCodeString(Datatype val) { return toCodeString(static_cast<size_t>(val)); }
 std::string toCodeString(float val);
 std::string toCodeString(double val);
 std::string toCodeString(size_t val);
@@ -133,7 +146,11 @@ class simple_jit_constant : public JitConstant {
     const std::string _value;
 
 public:
-    simple_jit_constant(const std::string& name, const std::string& value) : JitConstant(name), _value(value) {}
+    simple_jit_constant(const std::string& name, const std::string& value) : JitConstant(name), _value(value) {
+    #ifdef DUMP_JIT_VALUES
+        std::printf("%s=%s\n", name.c_str(), value.c_str());
+    #endif
+    }
 
     JitDefinitions GetDefinitions() const override { return JitDefinitions{{_name, _value}}; }
 };
@@ -154,13 +171,25 @@ class VectorDataJitConstant : public JitConstant {
     const std::vector<T> _data;
 
 public:
-    VectorDataJitConstant(const std::string& name, const std::vector<T>& data) : JitConstant(name), _data(data) {}
+    VectorDataJitConstant(const std::string& name, const std::vector<T>& data) : JitConstant(name), _data(data) {
+        #ifdef DUMP_JIT_VALUES
+            std::ostringstream oss;
+            oss << name << "=(";
+            for (const auto& d : data) {
+                oss << d << " ";
+            }
+            oss << ")" << std::endl;
+            std::printf("%s", oss.str().c_str());
+        #endif
+    }
 
     JitDefinitions GetDefinitions() const override {
         JitDefinitions result{
             {_name + "_SIZE", toCodeString(_data.size())},
             {_name, toVectorString(_data, GetTypeName<T>(), _data.size(), 1, [](const T& v) { return v; })},
         };
+
+        DUMP_JIT_DEFINITIONS(result)
         return result;
     }
 };
@@ -178,7 +207,17 @@ class SizeJitConstant : public JitConstant {
     const Size<T> _size;
 
 public:
-    SizeJitConstant(const std::string& name, const Size<T>& size) : JitConstant(name), _size(size) {}
+    SizeJitConstant(const std::string& name, const Size<T>& size) : JitConstant(name), _size(size) {
+        #ifdef DUMP_JIT_VALUES
+            std::ostringstream oss;
+            oss << name << "={"
+                    << size.x << " "
+                    << size.y << " "
+                    << size.z << " "
+                    << "}" << std::endl;
+            std::printf("%s", oss.str().c_str());
+        #endif
+    }
 
     JitDefinitions GetDefinitions() const override {
         JitDefinitions definitions{
@@ -186,6 +225,8 @@ public:
             {_name + "_SIZE_Y", toCodeString(_size.y)},
             {_name + "_SIZE_Z", toCodeString(_size.z)},
         };
+
+        DUMP_JIT_DEFINITIONS(definitions)
         return definitions;
     }
 };
@@ -214,6 +255,8 @@ public:
             {_name + "_SIZE_Z", toCodeString(_dims.z)},
             {_name + "_SIZE_W", toCodeString(_dims.w)},
         };
+
+        DUMP_JIT_DEFINITIONS(definitions)
         return definitions;
     }
 };

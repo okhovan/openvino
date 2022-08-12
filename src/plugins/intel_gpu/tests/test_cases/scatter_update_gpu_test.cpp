@@ -191,7 +191,7 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
     auto& engine = get_test_engine();
 
     auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 3, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
+    auto input2 = engine.allocate_memory({ data_types::f16/*f32*/, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
     auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Updates
     auto axis = 0;
 

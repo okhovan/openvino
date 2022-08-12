@@ -13,6 +13,7 @@
 #define AXIS_X (OUTPUT_DIMS - 1)
 
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
+#define MY_GET_UPDATES_INDEX(idx_order) INPUT2_GET_INDEX(idx_order)
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
@@ -21,6 +22,23 @@
 #elif OUTPUT_DIMS == 6
     #define ORDER b,f,w,z,y,x
 #endif
+
+
+inline void FUNC(planar_to_bfyx)(const uint planar_index,
+                                 const uint batch_num, const uint channel_num, const uint height, const uint width,
+                                 uint* dst_b, uint* dst_f, uint* dst_y, uint* dst_x)
+{
+    const uint feature_size = height * width;
+    const uint batch_size = channel_num * feature_size;
+
+    *dst_b = planar_index / batch_size;
+    const uint dst_fxy = planar_index % batch_size;
+    *dst_f = dst_fxy / feature_size;
+    const uint dst_xy = dst_fxy % feature_size;
+    *dst_y = dst_xy / width;
+    *dst_x = dst_xy % width;
+}
+
 
 KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
                    const __global INPUT1_TYPE* indices,
@@ -120,7 +138,17 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
     #endif
 
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
-    const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+    const uint ref_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+    const uint updates_idx = MY_GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+    printf("%d %d %d %d - %d %d\n", b, f, y, x, ref_updates_idx, updates_idx);
+/*
+    uint bb, ff, yy, xx;
+    FUNC_CALL(planar_to_bfyx)(plain_output_idx, OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X,
+                   bb, ff, yy, xx);
+    //since output shape is the same dictionary shape, we can use the same index
+    const uint output_idx = plain_output_idx;//OUTPUT_GET_INDEX(bb, ff, yy, xx);
+*/
+
 
     INPUT2_TYPE val = updates[updates_idx];
 
