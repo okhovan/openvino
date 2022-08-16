@@ -307,59 +307,66 @@ TEST(scatter_update_gpu_fp16, d4311_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 4, 3, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 3 } }); // Updates
-    auto axis = 0;
+    for(const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({data_types::f16, plain_2d_format, tensor{4, 3, 1, 1}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{2, 2, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_types::f16, plain_2d_format, tensor{2, 2, 1, 3}}); // Updates
+        auto axis = 0;
 
-    set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f),
-        FLOAT16(2.0f), FLOAT16(2.0f), FLOAT16(2.0f),
-        FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f),
-        FLOAT16(3.0f), FLOAT16(3.0f), FLOAT16(3.0f)
-    });
+        set_values(input1, {
+                FLOAT16(1.0f), FLOAT16(1.0f), FLOAT16(1.0f),
+                FLOAT16(2.0f), FLOAT16(2.0f), FLOAT16(2.0f),
+                FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f),
+                FLOAT16(3.0f), FLOAT16(3.0f), FLOAT16(3.0f)
+        });
 
-    set_values(input2, {
-        3.f, 1.f,
-        2.f, 0.f
-    });
+        set_values(input2, {
+                3.f, 1.f,
+                2.f, 0.f
+        });
 
-    set_values(input3, {
-        FLOAT16(7.0f), FLOAT16(7.0f), FLOAT16(7.0f),
-        FLOAT16(8.0f), FLOAT16(8.0f), FLOAT16(8.0f),
+        set_values(input3, {
+                FLOAT16(7.0f), FLOAT16(7.0f), FLOAT16(7.0f),
+                FLOAT16(8.0f), FLOAT16(8.0f), FLOAT16(8.0f),
 
-        FLOAT16(6.0f), FLOAT16(6.0f), FLOAT16(6.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f)
-    });
+                FLOAT16(6.0f), FLOAT16(6.0f), FLOAT16(6.0f),
+                FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f)
+        });
 
-    topology topology;
-    topology.add(input_layout("InputDictionary", input1->get_layout()));
-    topology.add(input_layout("InputText", input2->get_layout()));
-    topology.add(input_layout("InputUpdates", input3->get_layout()));
-    topology.add(
-        scatter_update("scatter_update", "InputDictionary", "InputText", "InputUpdates", axis)
-    );
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
+        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(
+                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+        );
+        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
 
-    network network(engine, topology);
+        network network(engine, topology);
 
-    network.set_input_data("InputDictionary", input1);
-    network.set_input_data("InputText", input2);
-    network.set_input_data("InputUpdates", input3);
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
 
-    auto outputs = network.execute();
+        auto outputs = network.execute();
 
-    auto output = outputs.at("scatter_update").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        9.f, 10.f, 11.f,
-        8.f, 8.f, 8.f,
-        6.f, 6.f, 6.f,
-        7.f, 7.f, 7.f
-    };
+        std::vector<float> expected_results = {
+                9.f, 10.f, 11.f,
+                8.f, 8.f, 8.f,
+                6.f, 6.f, 6.f,
+                7.f, 7.f, 7.f
+        };
 
-    for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+                                << "i=" << i << ", target_format=" << target_format;
+        }
     }
 }
 
