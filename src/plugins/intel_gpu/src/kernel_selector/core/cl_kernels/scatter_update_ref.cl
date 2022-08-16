@@ -39,6 +39,27 @@ inline void FUNC(planar_to_bfyx)(const uint planar_index,
     *dst_x = dst_xy % width;
 }
 
+inline void FUNC(planar_to_bfzyx)(const uint planar_index,
+                                 const uint batch_num, const uint channel_num, const uint z_size, const uint y_size, const uint x_size,
+                                 uint* dst_b, uint* dst_f, uint* dst_z, uint* dst_y, uint* dst_x)
+{
+    const uint size_2d = y_size * x_size;
+    const uint feature_size = z_size * size_2d;
+    const uint batch_size = channel_num * feature_size;
+
+    *dst_b = planar_index / batch_size;
+    const uint dst_fzxy = planar_index % batch_size;
+
+    *dst_f = dst_fzxy / feature_size;
+    const uint dst_zxy = dst_fzxy % feature_size;
+
+    *dst_z = dst_zxy / z_size;
+    const uint dst_xy = dst_zxy % z_size;
+
+    *dst_y = dst_xy / x_size;
+    *dst_x = dst_xy % x_size;
+}
+
 
 KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
                    const __global INPUT1_TYPE* indices,
@@ -147,7 +168,7 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 //    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, axis_index);
 
     const uint planar_axis_idx = OUTPUT_INDEX_ON_AXIS;
-    uint bb, ff, yy, xx;
+    uint bb, ff, zz, yy, xx;
     FUNC_CALL(planar_to_bfyx)(planar_axis_idx, INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X,
                    &bb, &ff, &yy, &xx);
     const uint axis_idx = INPUT1_GET_INDEX(bb, ff, yy, xx);
@@ -156,9 +177,9 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 
 
     const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
-    FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Y, INPUT2_SIZE_X,
-                   &bb, &ff, &yy, &xx);
-    const uint updates_idx = INPUT2_GET_INDEX(bb, ff, yy, xx);
+    FUNC_CALL(planar_to_bfzyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Z, INPUT2_SIZE_Y, INPUT2_SIZE_X,
+                   &bb, &ff, &zz, &yy, &xx);
+    const uint updates_idx = INPUT2_GET_INDEX(bb, ff, zz, yy, xx);
 
     INPUT2_TYPE val = updates[updates_idx];
 
