@@ -156,18 +156,11 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 
 
     const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
-/*
-    const uint updates_idx = MY_GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
-    printf("%d %d %d %d - %d %d\n", b, f, y, x, ref_updates_idx, updates_idx);
-    uint bb, ff, yy, xx;
-    FUNC_CALL(planar_to_bfyx)(plain_output_idx, OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X,
-                   bb, ff, yy, xx);
-    //since output shape is the same dictionary shape, we can use the same index
-    const uint output_idx = plain_output_idx;//OUTPUT_GET_INDEX(bb, ff, yy, xx);
-*/
+    FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Y, INPUT2_SIZE_X,
+                   &bb, &ff, &yy, &xx);
+    const uint updates_idx = INPUT2_GET_INDEX(bb, ff, yy, xx);
 
-
-    INPUT2_TYPE val = updates[planar_updates_idx];
+    INPUT2_TYPE val = updates[updates_idx];
 
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
