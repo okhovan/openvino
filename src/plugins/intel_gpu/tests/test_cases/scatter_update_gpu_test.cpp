@@ -1346,13 +1346,13 @@ TEST(scatter_update_gpu_fp32, d21511_bfzyx_axisX) {
             topology.add(input_layout("InputDictionary", input1->get_layout()));
             topology.add(input_layout("InputText", input2->get_layout()));
             topology.add(input_layout("InputUpdates", input3->get_layout()));
-            topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::i32));
+            topology.add(reorder("DictionaryReordered", "InputDictionary", target_format_3d, data_types::i32));
             topology.add(reorder("TextReordered", "InputText", target_format, data_types::i32));
             topology.add(reorder("UpdatesReordered", "InputUpdates", target_format_3d, data_types::i32));
             topology.add(
                     scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
             );
-            topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::i32));
+            topology.add(reorder("out", "scatter_update", plain_3d_format, data_types::i32));
 
             network network(engine, topology);
 
