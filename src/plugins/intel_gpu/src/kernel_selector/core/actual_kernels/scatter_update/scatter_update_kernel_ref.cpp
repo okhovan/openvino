@@ -255,15 +255,15 @@ KernelsData ScatterUpdateKernelRef::GetKernelsData(const Params& params, const o
         return {};
     }
 
-//    const scatter_update_params& orgParams = static_cast<const scatter_update_params&>(params);
-//    const size_t indices_size = orgParams.inputs[1].LogicalSize();
+    const scatter_update_params& orgParams = static_cast<const scatter_update_params&>(params);
+    const size_t indices_size = orgParams.inputs[1].LogicalSize();
     int start_with_iteration = 0;
 
     // if dim of output along axis is equal to logical size of indices, we miss copying kernel
-//    if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis),
-//                                    orgParams.inputs[0].GetDims()).v == indices_size) {
-//        start_with_iteration = 1;
-//    }
+    if (orgParams.inputs[0].Extract(orgParams.inputs[0].GetLayout(), Tensor::DataChannelName(orgParams.axis),
+                                    orgParams.inputs[0].GetDims()).v == indices_size) {
+        start_with_iteration = 1;
+    }
 
     KernelData kd = KernelData::Default<scatter_update_params>(params, (2 - start_with_iteration));
     scatter_update_params& newParams = *static_cast<scatter_update_params*>(kd.params.get());
