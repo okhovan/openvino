@@ -137,11 +137,13 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
         #endif
     #endif
 
-    const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
-    const uint ref_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+    const uint axis_index = indices[b/*OUTPUT_INDEX_ON_AXIS*/];
+    const uint output_idx = OUTPUT_GET_INDEX(axis_index, f, y, x);
+
+    const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+/*
     const uint updates_idx = MY_GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
     printf("%d %d %d %d - %d %d\n", b, f, y, x, ref_updates_idx, updates_idx);
-/*
     uint bb, ff, yy, xx;
     FUNC_CALL(planar_to_bfyx)(plain_output_idx, OUTPUT_BATCH_NUM, OUTPUT_FEATURE_NUM, OUTPUT_SIZE_Y, OUTPUT_SIZE_X,
                    bb, ff, yy, xx);
