@@ -1035,58 +1035,65 @@ TEST(scatter_update_gpu_int32, d3151_axisY) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 1, 5 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto input3 = engine.allocate_memory({ data_types::i32, format::bfyx, tensor{ 3, 1, 2, 2 } }); // Updates
-    auto axis = 2;
+    for(const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({data_types::i32, plain_2d_format, tensor{3, 1, 1, 5}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_types::i32, plain_2d_format, tensor{2, 2, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_types::i32, plain_2d_format, tensor{3, 1, 2, 2}}); // Updates
+        auto axis = 2;
 
-    set_values(input1, {
-        0, 1, 2, 3, 4,
-        5, 6, 7, 8, 9,
-        10, 11, 12, 13, 14
-    });
+        set_values(input1, {
+                0, 1, 2, 3, 4,
+                5, 6, 7, 8, 9,
+                10, 11, 12, 13, 14
+        });
 
-    set_values(input2, {
-        3, 2,
-        0, 4
-    });
+        set_values(input2, {
+                3, 2,
+                0, 4
+        });
 
-    set_values(input3, {
-        200,  20,
-        30,   40,
-        50,   60,
-        70,   80,
-        90,  100,
-        110,  120
-    });
+        set_values(input3, {
+                200, 20,
+                30, 40,
+                50, 60,
+                70, 80,
+                90, 100,
+                110, 120
+        });
 
-    topology topology;
-    topology.add(input_layout("InputDictionary", input1->get_layout()));
-    topology.add(input_layout("InputText", input2->get_layout()));
-    topology.add(input_layout("InputUpdates", input3->get_layout()));
-    topology.add(
-        scatter_update("scatter_update", "InputDictionary", "InputText", "InputUpdates", axis)
-    );
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::i32));
+        topology.add(reorder("TextReordered", "InputText", target_format, data_types::i32));
+        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::i32));
+        topology.add(
+                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+        );
+        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::i32));
 
-    network network(engine, topology);
+        network network(engine, topology);
 
-    network.set_input_data("InputDictionary", input1);
-    network.set_input_data("InputText", input2);
-    network.set_input_data("InputUpdates", input3);
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
 
-    auto outputs = network.execute();
+        auto outputs = network.execute();
 
-    auto output = outputs.at("scatter_update").get_memory();
-    cldnn::mem_lock<int> output_ptr(output, get_test_stream());
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<int> output_ptr(output, get_test_stream());
 
-    std::vector<int> expected_results = {
-        30, 1, 20, 200, 40,
-        70, 6, 60, 50, 80,
-        110, 11, 100, 90, 120
-    };
+        std::vector<int> expected_results = {
+                30, 1, 20, 200, 40,
+                70, 6, 60, 50, 80,
+                110, 11, 100, 90, 120
+        };
 
-    for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_EQ(expected_results[i], output_ptr[i])
+                << "i=" << i << ", target_format=" << target_format;
+        }
     }
 }
 
