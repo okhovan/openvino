@@ -193,7 +193,7 @@ TEST(scatter_update_gpu_fp16, d2411_axisB) {
 
         for (size_t i = 0; i < expected_results.size(); ++i) {
             EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
-                                << "i=" << i << ", target_format=" << target_format;
+                << "i=" << i << ", target_format=" << target_format;
         }
     }
 }
@@ -221,49 +221,56 @@ TEST(scatter_update_gpu_fp32, d8111_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 8, 1, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 1, 1, 1 } }); // Indexes
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 4, 1, 1, 1 } }); // Updates
-    auto axis = 0;
+    for(const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{8, 1, 1, 1}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{4, 1, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{4, 1, 1, 1}}); // Updates
+        auto axis = 0;
 
-    set_values(input1, {
-        1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f
-    });
+        set_values(input1, {
+                1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f
+        });
 
-    set_values(input2, {
-        4.f, 3.f, 1.f, 7.f
-    });
+        set_values(input2, {
+                4.f, 3.f, 1.f, 7.f
+        });
 
-    set_values(input3, {
-        9.0f, 10.0f, 11.0f, 12.0f
-    });
+        set_values(input3, {
+                9.0f, 10.0f, 11.0f, 12.0f
+        });
 
-    topology topology;
-    topology.add(input_layout("InputDictionary", input1->get_layout()));
-    topology.add(input_layout("InputText", input2->get_layout()));
-    topology.add(input_layout("InputUpdates", input3->get_layout()));
-    topology.add(
-        scatter_update("scatter_update", "InputDictionary", "InputText", "InputUpdates", axis)
-    );
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f32));
+        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f32));
+        topology.add(
+                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+        );
+        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f32));
 
-    network network(engine, topology);
+        network network(engine, topology);
 
 
-    network.set_input_data("InputDictionary", input1);
-    network.set_input_data("InputText", input2);
-    network.set_input_data("InputUpdates", input3);
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
 
-    auto outputs = network.execute();
+        auto outputs = network.execute();
 
-    auto output = outputs.at("scatter_update").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f
-    };
+        std::vector<float> expected_results = {
+                1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f
+        };
 
-    for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_EQ(expected_results[i], output_ptr[i])
+                                << "i=" << i << ", target_format=" << target_format;
+        }
     }
 }
 
