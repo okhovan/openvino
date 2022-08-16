@@ -265,9 +265,9 @@ bool ScatterUpdateKernelRef::Validate(const Params& p, const optional_params& o)
             return false;
     }
 
-    if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[2].PitchesDifferFromLogicalDims()) {
-        return false;
-    }
+//    if (params.outputs[0].PitchesDifferFromLogicalDims() || params.inputs[2].PitchesDifferFromLogicalDims()) {
+//        return false;
+//    }
 
     return true;
 }

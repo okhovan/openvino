@@ -59,6 +59,32 @@ inline void FUNC(planar_to_bfzyx)(const uint planar_index,
     *dst_y = dst_xy / x_size;
     *dst_x = dst_xy % x_size;
 }
+
+inline void FUNC(planar_to_bfwzyx)(const uint planar_index,
+                                 const uint batch_num, const uint channel_num, const uint w_size, const uint z_size, const uint y_size, const uint x_size,
+                                 uint* dst_b, uint* dst_f, uint* dst_w, uint* dst_z, uint* dst_y, uint* dst_x)
+{
+    const uint size_2d = y_size * x_size;
+    const uint size_3d = z_size * size_2d;
+    const uint feature_size = w_size * size_3d;
+    const uint batch_size = channel_num * feature_size;
+
+    *dst_b = planar_index / batch_size;
+    const uint dst_fwzxy = planar_index % batch_size;
+
+    *dst_f = dst_fwzxy / feature_size;
+    const uint dst_wzxy = dst_fwzxy % feature_size;
+
+    *dst_w = dst_wzxy / w_size;
+    const uint dst_zxy = dst_wzxy % w_size;
+
+    *dst_z = dst_zxy / z_size;
+    const uint dst_xy = dst_zxy % z_size;
+
+    *dst_y = dst_xy / x_size;
+    *dst_x = dst_xy % x_size;
+}
+
 #endif // BLOCKED_LAYOUT
 
 KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
@@ -173,22 +199,23 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 
     #ifdef BLOCKED_LAYOUT
         const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
-        FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, /*INPUT2_SIZE_W, INPUT2_SIZE_Z,*/ INPUT2_SIZE_Y, INPUT2_SIZE_X,
-                       &bb, &ff, /*&ww, &zz,*/ &yy, &xx);
-        const uint updates_idx = INPUT2_GET_INDEX(bb, ff, /*ww, zz,*/ yy, xx);
-/*
+
         #if INPUT2_DIMS == 4
             FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Y, INPUT2_SIZE_X,
                            &bb, &ff, &yy, &xx);
             const uint updates_idx = INPUT2_GET_INDEX(bb, ff, yy, xx);
         #elif INPUT2_DIMS == 5
-            FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Z, INPUT2_SIZE_Y, INPUT2_SIZE_X,
+            FUNC_CALL(planar_to_bfzyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Z, INPUT2_SIZE_Y, INPUT2_SIZE_X,
                            &bb, &ff, &zz, &yy, &xx);
             const uint updates_idx = INPUT2_GET_INDEX(bb, ff, zz, yy, xx);
+        #elif INPUT2_DIMS == 6
+            FUNC_CALL(planar_to_bfwzyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_W, INPUT2_SIZE_Z, INPUT2_SIZE_Y, INPUT2_SIZE_X,
+                           &bb, &ff, &ww, &zz, &yy, &xx);
+            const uint updates_idx = INPUT2_GET_INDEX(bb, ff, ww, zz, yy, xx);
         #else
-            #error Unsupported indices rank
+            #error Unsupported updates rank
         #endif
-*/
+
     #else
         const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
     #endif
