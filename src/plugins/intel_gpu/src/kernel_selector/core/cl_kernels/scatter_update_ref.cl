@@ -23,7 +23,7 @@
     #define ORDER b,f,w,z,y,x
 #endif
 
-
+#ifdef BLOCKED_LAYOUT
 inline void FUNC(planar_to_bfyx)(const uint planar_index,
                                  const uint batch_num, const uint channel_num, const uint height, const uint width,
                                  uint* dst_b, uint* dst_f, uint* dst_y, uint* dst_x)
@@ -59,32 +59,7 @@ inline void FUNC(planar_to_bfzyx)(const uint planar_index,
     *dst_y = dst_xy / x_size;
     *dst_x = dst_xy % x_size;
 }
-
-inline void FUNC(planar_to_bfwzyx)(const uint planar_index,
-                                 const uint batch_num, const uint channel_num, const uint w_size, const uint z_size, const uint y_size, const uint x_size,
-                                 uint* dst_b, uint* dst_f, uint* dst_w, uint* dst_z, uint* dst_y, uint* dst_x)
-{
-    const uint size_2d = y_size * x_size;
-    const uint size_3d = z_size * size_2d;
-    const uint feature_size = w_size * size_3d;
-    const uint batch_size = channel_num * feature_size;
-
-    *dst_b = planar_index / batch_size;
-    const uint dst_fwzxy = planar_index % batch_size;
-
-    *dst_f = dst_fwzxy / feature_size;
-    const uint dst_wzxy = dst_fwzxy % feature_size;
-
-    *dst_w = dst_wzxy / w_size;
-    const uint dst_zxy = dst_wzxy % w_size;
-
-    *dst_z = dst_zxy / z_size;
-    const uint dst_xy = dst_zxy % z_size;
-
-    *dst_y = dst_xy / x_size;
-    *dst_x = dst_xy % x_size;
-}
-
+#endif // BLOCKED_LAYOUT
 
 KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
                    const __global INPUT1_TYPE* indices,
@@ -183,28 +158,27 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
         #endif
     #endif
 
-//    const uint axis_index = indices[b/*OUTPUT_INDEX_ON_AXIS*/];
-//    const uint output_idx = OUTPUT_GET_INDEX(axis_index, f, y, x);
-//    const uint axis_index = indices[f/*OUTPUT_INDEX_ON_AXIS*/];
-//    const uint output_idx = OUTPUT_GET_INDEX(b, axis_index, y, x);
-//    const uint axis_index = indices[y/*OUTPUT_INDEX_ON_AXIS*/];
-//    const uint output_idx = OUTPUT_GET_INDEX(b, f, axis_index, x);
-//    const uint axis_index = indices[x/*OUTPUT_INDEX_ON_AXIS*/];
-//    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, axis_index);
+    #ifdef BLOCKED_LAYOUT
+        const uint planar_axis_idx = OUTPUT_INDEX_ON_AXIS;
+        uint bb, ff, ww, zz, yy, xx;
+        FUNC_CALL(planar_to_bfyx)(planar_axis_idx, INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X,
+                       &bb, &ff, &yy, &xx);
+        const uint axis_idx = INPUT1_GET_INDEX(bb, ff, yy, xx);
+        const uint index_by_axis = indices[axis_idx];
+    #else
+        const uint index_by_axis = convert_int(indices[OUTPUT_INDEX_ON_AXIS]);
+    #endif
 
-    const uint planar_axis_idx = OUTPUT_INDEX_ON_AXIS;
-    uint bb, ff, ww, zz, yy, xx;
-    FUNC_CALL(planar_to_bfyx)(planar_axis_idx, INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X,
-                   &bb, &ff, &yy, &xx);
-    const uint axis_idx = INPUT1_GET_INDEX(bb, ff, yy, xx);
-    const uint index_by_axis = indices[axis_idx];
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
 
-
-    const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
-    FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, /*INPUT2_SIZE_W, INPUT2_SIZE_Z,*/ INPUT2_SIZE_Y, INPUT2_SIZE_X,
-                   &bb, &ff, /*&ww, &zz,*/ &yy, &xx);
-    const uint updates_idx = INPUT2_GET_INDEX(bb, ff, /*ww, zz,*/ yy, xx);
+    #ifdef BLOCKED_LAYOUT
+        const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+        FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, /*INPUT2_SIZE_W, INPUT2_SIZE_Z,*/ INPUT2_SIZE_Y, INPUT2_SIZE_X,
+                       &bb, &ff, /*&ww, &zz,*/ &yy, &xx);
+        const uint updates_idx = INPUT2_GET_INDEX(bb, ff, /*ww, zz,*/ yy, xx);
+    #else
+        const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+    #endif
 
     INPUT2_TYPE val = updates[updates_idx];
 

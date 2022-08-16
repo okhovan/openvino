@@ -188,6 +188,14 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
 
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
+    const auto blocked_layout = !(SimpleLayout(params.inputs[0].GetLayout())
+                                    && SimpleLayout(params.inputs[1].GetLayout())
+                                    && SimpleLayout(params.inputs[2].GetLayout()));
+
+    if (blocked_layout) {
+        jit.AddConstant(MakeJitConstant("BLOCKED_LAYOUT", "1"));
+    }
+
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
     jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
