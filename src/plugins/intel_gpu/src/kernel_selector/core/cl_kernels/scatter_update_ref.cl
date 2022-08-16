@@ -155,7 +155,7 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
 
 
-    const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
+    const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
 /*
     const uint updates_idx = MY_GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
     printf("%d %d %d %d - %d %d\n", b, f, y, x, ref_updates_idx, updates_idx);
@@ -167,7 +167,7 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 */
 
 
-    INPUT2_TYPE val = updates[updates_idx];
+    INPUT2_TYPE val = updates[planar_updates_idx];
 
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
