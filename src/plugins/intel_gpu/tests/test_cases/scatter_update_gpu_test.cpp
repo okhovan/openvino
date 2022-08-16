@@ -1416,61 +1416,70 @@ TEST(scatter_update_gpu_fp32, d1252_axisY_bfwzyx) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 1, 2, 2, 5 } });                                         // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 2 } });                                         // Indices
-    auto input3 = engine.allocate_memory({ data_types::f32, format::bfwzyx, tensor{ batch(1), feature(2), spatial(2, 2, 1, 2) } });  // Updates
-    auto axis = 2;
+    for(const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{1, 2, 2,
+                                                                                       5}});                                         // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format,
+                                              tensor{2, 1, 1, 2}});                                         // Indices
+        auto input3 = engine.allocate_memory(
+                {data_types::f32, format::bfwzyx, tensor{batch(1), feature(2), spatial(2, 2, 1, 2)}});  // Updates
+        auto axis = 2;
 
-    set_values(input1, {
-        0.f, 1.f,     2.f, 3.f,     4.f, 5.f,     6.f, 7.f,     8.f, 9.f,
-        10.f, 11.f,   12.f, 13.f,   14.f, 15.f,   16.f, 17.f,   18.f, 19.f
-    });
+        set_values(input1, {
+                0.f, 1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f, 9.f,
+                10.f, 11.f, 12.f, 13.f, 14.f, 15.f, 16.f, 17.f, 18.f, 19.f
+        });
 
-    set_values(input2, {
-        2.f, 0.f,
-        3.f, 4.f
-    });
+        set_values(input2, {
+                2.f, 0.f,
+                3.f, 4.f
+        });
 
-    set_values(input3, {
-        20.f, 30.f,
-        40.f, 50.f,
+        set_values(input3, {
+                20.f, 30.f,
+                40.f, 50.f,
 
-        60.f, 70.f,
-        80.f, 90.f,
+                60.f, 70.f,
+                80.f, 90.f,
 
-        100.f, 110.f,
-        120.f, 130.f,
+                100.f, 110.f,
+                120.f, 130.f,
 
-        140.f, 150.f,
-        160.f, 170.f
-    });
+                140.f, 150.f,
+                160.f, 170.f
+        });
 
-    topology topology;
-    topology.add(input_layout("InputDictionary", input1->get_layout()));
-    topology.add(input_layout("InputText", input2->get_layout()));
-    topology.add(input_layout("InputUpdates", input3->get_layout()));
-    topology.add(
-        scatter_update("scatter_update", "InputDictionary", "InputText", "InputUpdates", axis)
-    );
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f32));
+        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
+        topology.add(
+                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "InputUpdates", axis)
+        );
+        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f32));
 
-    network network(engine, topology);
+        network network(engine, topology);
 
-    network.set_input_data("InputDictionary", input1);
-    network.set_input_data("InputText", input2);
-    network.set_input_data("InputUpdates", input3);
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
 
-    auto outputs = network.execute();
+        auto outputs = network.execute();
 
-    auto output = outputs.at("scatter_update").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        40.f, 50.f,     2.f, 3.f,     20.f, 30.f,     60.f, 70.f,     80.f, 90.f,
-        120.f, 130.f,   12.f, 13.f,   100.f, 110.f,   140.f, 150.f,   160.f, 170.f
-    };
+        std::vector<float> expected_results = {
+                40.f, 50.f, 2.f, 3.f, 20.f, 30.f, 60.f, 70.f, 80.f, 90.f,
+                120.f, 130.f, 12.f, 13.f, 100.f, 110.f, 140.f, 150.f, 160.f, 170.f
+        };
 
-    for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], output_ptr[i]);
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_EQ(expected_results[i], output_ptr[i])
+                                << "i=" << i << ", target_format=" << target_format;
+        }
     }
 }
 
