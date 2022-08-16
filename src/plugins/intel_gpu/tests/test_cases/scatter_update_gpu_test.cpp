@@ -543,64 +543,71 @@ TEST(scatter_update_gpu_fp16, d2241_axisY) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 1, 4 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 2, 1, 1 } }); // Indexes
-    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 2, 2, 2 } }); // Updates
-    auto axis = 2;
+    for(const auto target_format : formats2D) {
+        auto input1 = engine.allocate_memory({data_types::f16, plain_2d_format, tensor{2, 2, 1, 4}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{2, 2, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_types::f16, plain_2d_format, tensor{2, 2, 2, 2}}); // Updates
+        auto axis = 2;
 
-    set_values(input1, {
-        FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
-        FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
-        FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
-        FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f), FLOAT16(16.0f)
-    });
+        set_values(input1, {
+                FLOAT16(1.0f), FLOAT16(2.0f), FLOAT16(3.0f), FLOAT16(4.0f),
+                FLOAT16(5.0f), FLOAT16(6.0f), FLOAT16(7.0f), FLOAT16(8.0f),
+                FLOAT16(9.0f), FLOAT16(10.0f), FLOAT16(11.0f), FLOAT16(12.0f),
+                FLOAT16(13.0f), FLOAT16(14.0f), FLOAT16(15.0f), FLOAT16(16.0f)
+        });
 
-    set_values(input2, {
-        0.f, 2.f,
-        3.f, 1.f
-    });
+        set_values(input2, {
+                0.f, 2.f,
+                3.f, 1.f
+        });
 
-    set_values(input3, {
-        FLOAT16(0.0f), FLOAT16(20.0f),
-        FLOAT16(30.0f), FLOAT16(40.0f),
-        FLOAT16(50.0f), FLOAT16(60.0f),
-        FLOAT16(70.0f), FLOAT16(80.0f),
+        set_values(input3, {
+                FLOAT16(0.0f), FLOAT16(20.0f),
+                FLOAT16(30.0f), FLOAT16(40.0f),
+                FLOAT16(50.0f), FLOAT16(60.0f),
+                FLOAT16(70.0f), FLOAT16(80.0f),
 
-        FLOAT16(90.0f), FLOAT16(100.0f),
-        FLOAT16(110.0f), FLOAT16(120.0f),
-        FLOAT16(130.0f), FLOAT16(140.0f),
-        FLOAT16(150.0f), FLOAT16(160.0f)
-    });
+                FLOAT16(90.0f), FLOAT16(100.0f),
+                FLOAT16(110.0f), FLOAT16(120.0f),
+                FLOAT16(130.0f), FLOAT16(140.0f),
+                FLOAT16(150.0f), FLOAT16(160.0f)
+        });
 
-    topology topology;
-    topology.add(input_layout("InputDictionary", input1->get_layout()));
-    topology.add(input_layout("InputText", input2->get_layout()));
-    topology.add(input_layout("InputUpdates", input3->get_layout()));
-    topology.add(
-        scatter_update("scatter_update", "InputDictionary", "InputText", "InputUpdates", axis)
-    );
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
+        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(
+                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+        );
+        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
 
-    network network(engine, topology);
+        network network(engine, topology);
 
-    network.set_input_data("InputDictionary", input1);
-    network.set_input_data("InputText", input2);
-    network.set_input_data("InputUpdates", input3);
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
 
-    auto outputs = network.execute();
+        auto outputs = network.execute();
 
-    auto output = outputs.at("scatter_update").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        0.f, 40.f, 20.f, 30.f,
-        50.f, 80.f, 60.f, 70.f,
-        90.f, 120.f, 100.f, 110.f,
-        130.f, 160.f, 140.f, 150.f
-    };
+        std::vector<float> expected_results = {
+                0.f, 40.f, 20.f, 30.f,
+                50.f, 80.f, 60.f, 70.f,
+                90.f, 120.f, 100.f, 110.f,
+                130.f, 160.f, 140.f, 150.f
+        };
 
 
-    for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+                                << "i=" << i << ", target_format=" << target_format;
+        }
     }
 }
 
