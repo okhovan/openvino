@@ -176,6 +176,19 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
         FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, /*INPUT2_SIZE_W, INPUT2_SIZE_Z,*/ INPUT2_SIZE_Y, INPUT2_SIZE_X,
                        &bb, &ff, /*&ww, &zz,*/ &yy, &xx);
         const uint updates_idx = INPUT2_GET_INDEX(bb, ff, /*ww, zz,*/ yy, xx);
+/*
+        #if INPUT2_DIMS == 4
+            FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Y, INPUT2_SIZE_X,
+                           &bb, &ff, &yy, &xx);
+            const uint updates_idx = INPUT2_GET_INDEX(bb, ff, yy, xx);
+        #elif INPUT2_DIMS == 5
+            FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_Z, INPUT2_SIZE_Y, INPUT2_SIZE_X,
+                           &bb, &ff, &zz, &yy, &xx);
+            const uint updates_idx = INPUT2_GET_INDEX(bb, ff, zz, yy, xx);
+        #else
+            #error Unsupported indices rank
+        #endif
+*/
     #else
         const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
     #endif
