@@ -146,8 +146,12 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 //    const uint axis_index = indices[x/*OUTPUT_INDEX_ON_AXIS*/];
 //    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, axis_index);
 
-    const uint axis_idx = OUTPUT_INDEX_ON_AXIS;
-    const uint index_by_axis = indices[axis_idx];
+    const uint planar_axis_idx = OUTPUT_INDEX_ON_AXIS;
+//    uint bb, ff, yy, xx;
+//    FUNC_CALL(planar_to_bfyx)(planar_axis_idx, INPUT1_BATCH_NUM, INPUT1_FEATURE_NUM, INPUT1_SIZE_Y, INPUT1_SIZE_X,
+//                   bb, ff, yy, xx);
+//    const uint axis_idx = INPUT1_GET_INDEX(bb, ff, yy, xx);
+    const uint index_by_axis = indices[planar_axis_idx];
     const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
 
 
