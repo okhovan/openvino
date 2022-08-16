@@ -13,6 +13,7 @@ using namespace cldnn;
 using namespace ::tests;
 
 
+const auto plain_2d_format = format::bfyx;
 const std::vector<format::type> formats2D{
         format::bfyx,
         format::b_fs_yx_fsv16,
@@ -22,6 +23,7 @@ const std::vector<format::type> formats2D{
         format::bs_fs_yx_bsv32_fsv32
 };
 
+const auto plain_3d_format = format::bfzyx;
 const std::vector<format::type> formats3D{
         format::bfzyx,
         format::b_fs_zyx_fsv16,
@@ -57,14 +59,12 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_blocked) {
     auto& engine = get_test_engine();
 
     const auto data_type = data_types::f32;
-    const auto plain_format = format::bfyx;
-    //const auto target_format = format::b_fs_yx_fsv16;
 
     for(const auto target_format : formats2D) {
 
-        auto input1 = engine.allocate_memory({data_type, plain_format, tensor{8, 1, 1, 1}}); // Dictionary
-        auto input2 = engine.allocate_memory({data_type, plain_format, tensor{4, 1, 1, 1}}); // Indexes
-        auto input3 = engine.allocate_memory({data_type, plain_format, tensor{4, 1, 1, 1}}); // Updates
+        auto input1 = engine.allocate_memory({data_type, plain_2d_format, tensor{8, 1, 1, 1}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_type, plain_2d_format, tensor{4, 1, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_type, plain_2d_format, tensor{4, 1, 1, 1}}); // Updates
         auto axis = 0;
 
         set_values(input1, {
@@ -89,7 +89,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_blocked) {
         topology.add(
                 scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
         );
-        topology.add(reorder("out", "scatter_update", plain_format, data_type));
+        topology.add(reorder("out", "scatter_update", plain_2d_format, data_type));
 
         network network(engine, topology);
 
@@ -140,53 +140,61 @@ TEST(scatter_update_gpu_fp16, d2411_axisB) {
 
     auto& engine = get_test_engine();
 
-    auto input1 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 4, 1, 1 } }); // Dictionary
-    auto input2 = engine.allocate_memory({ data_types::f32, format::bfyx, tensor{ 2, 1, 1, 1 } }); // Indexes
-    auto input3 = engine.allocate_memory({ data_types::f16, format::bfyx, tensor{ 2, 4, 1, 1 } }); // Updates
-    auto axis = 0;
+    for(const auto target_format : formats2D) {
 
-    set_values(input1, {
-        FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f),
-        FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f)
-    });
+        auto input1 = engine.allocate_memory({data_types::f16, plain_2d_format, tensor{2, 4, 1, 1}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_types::f32, plain_2d_format, tensor{2, 1, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_types::f16, plain_2d_format, tensor{2, 4, 1, 1}}); // Updates
+        auto axis = 0;
 
-    set_values(input2, {
-        1.f, 0.f
-    });
+        set_values(input1, {
+                FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f),
+                FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f), FLOAT16(0.0f)
+        });
 
-    set_values(input3, {
-        FLOAT16(1.0f), FLOAT16(7.0f), FLOAT16(2.0f), FLOAT16(9.0f),
-        FLOAT16(3.0f), FLOAT16(6.0f), FLOAT16(5.0f), FLOAT16(4.0f)
-    });
+        set_values(input2, {
+                1.f, 0.f
+        });
 
-    topology topology;
-    topology.add(input_layout("InputDictionary", input1->get_layout()));
-    topology.add(input_layout("InputText", input2->get_layout()));
-    topology.add(input_layout("InputUpdates", input3->get_layout()));
-    topology.add(
-        scatter_update("scatter_update", "InputDictionary", "InputText", "InputUpdates", axis)
-    );
+        set_values(input3, {
+                FLOAT16(1.0f), FLOAT16(7.0f), FLOAT16(2.0f), FLOAT16(9.0f),
+                FLOAT16(3.0f), FLOAT16(6.0f), FLOAT16(5.0f), FLOAT16(4.0f)
+        });
 
-    network network(engine, topology);
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_types::f16));
+        topology.add(reorder("TextReordered", "InputText", target_format, data_types::f32));
+        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_types::f16));
+        topology.add(
+                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+        );
+        topology.add(reorder("out", "scatter_update", plain_2d_format, data_types::f16));
+
+        network network(engine, topology);
 
 
-    network.set_input_data("InputDictionary", input1);
-    network.set_input_data("InputText", input2);
-    network.set_input_data("InputUpdates", input3);
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
 
-    auto outputs = network.execute();
+        auto outputs = network.execute();
 
 
-    auto output = outputs.at("scatter_update").get_memory();
-    cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<uint16_t> output_ptr(output, get_test_stream());
 
-    std::vector<float> expected_results = {
-        3.f, 6.f, 5.f, 4.f,
-        1.f, 7.f, 2.f, 9.f
-    };
+        std::vector<float> expected_results = {
+                3.f, 6.f, 5.f, 4.f,
+                1.f, 7.f, 2.f, 9.f
+        };
 
-    for (size_t i = 0; i < expected_results.size(); ++i) {
-        EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]));
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_EQ(expected_results[i], float16_to_float32(output_ptr[i]))
+                                << "i=" << i << ", target_format=" << target_format;
+        }
     }
 }
 
