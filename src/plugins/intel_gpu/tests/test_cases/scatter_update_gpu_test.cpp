@@ -60,13 +60,7 @@ TEST(scatter_update_gpu_fp32, d8111_axisB_blocked) {
     const auto plain_format = format::bfyx;
     //const auto target_format = format::b_fs_yx_fsv16;
 
-    for(const auto target_format : {
-        format::bfyx, format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32
-    }) {
+    for(const auto target_format : formats2D) {
 
         auto input1 = engine.allocate_memory({data_type, plain_format, tensor{8, 1, 1, 1}}); // Dictionary
         auto input2 = engine.allocate_memory({data_type, plain_format, tensor{4, 1, 1, 1}}); // Indexes

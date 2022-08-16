@@ -202,9 +202,9 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 
 
     const uint planar_updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
-    FUNC_CALL(planar_to_bfwzyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, INPUT2_SIZE_W, INPUT2_SIZE_Z, INPUT2_SIZE_Y, INPUT2_SIZE_X,
-                   &bb, &ff, &ww, &zz, &yy, &xx);
-    const uint updates_idx = INPUT2_GET_INDEX(bb, ff, ww, zz, yy, xx);
+    FUNC_CALL(planar_to_bfyx)(planar_updates_idx, INPUT2_BATCH_NUM, INPUT2_FEATURE_NUM, /*INPUT2_SIZE_W, INPUT2_SIZE_Z,*/ INPUT2_SIZE_Y, INPUT2_SIZE_X,
+                   &bb, &ff, /*&ww, &zz,*/ &yy, &xx);
+    const uint updates_idx = INPUT2_GET_INDEX(bb, ff, /*ww, zz,*/ yy, xx);
 
     INPUT2_TYPE val = updates[updates_idx];
 
