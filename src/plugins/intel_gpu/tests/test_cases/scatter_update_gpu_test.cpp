@@ -13,6 +13,114 @@ using namespace cldnn;
 using namespace ::tests;
 
 
+const std::vector<format::type> formats2D{
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
+};
+
+const std::vector<format::type> formats3D{
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::bs_fs_zyx_bsv16_fsv16
+};
+
+const std::vector<format::type> formats4D{
+        format::bfwzyx
+};
+
+
+TEST(scatter_update_gpu_fp32, d8111_axisB_blocked) {
+    //  Dictionary : 8x1x1x1
+    //  Indexes : 4x1x1x1
+    //  Updates : 4x1x1x1
+    //  Axis : 0
+    //  Output : 8x1x1x1
+    //  Input values in fp32
+
+    //  Indexes:
+    //  4.f, 3.f, 1.f, 7.f
+    //
+    //  Updates:
+    //  9.f, 10.f, 11.f, 12.f
+    //
+    //  Dictionary:
+    //  1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f
+    //
+    //  Output:
+    //  1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f
+
+
+    auto& engine = get_test_engine();
+
+    const auto data_type = data_types::f32;
+    const auto plain_format = format::bfyx;
+    //const auto target_format = format::b_fs_yx_fsv16;
+
+    for(const auto target_format : {
+        format::bfyx, format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
+    }) {
+
+        auto input1 = engine.allocate_memory({data_type, plain_format, tensor{8, 1, 1, 1}}); // Dictionary
+        auto input2 = engine.allocate_memory({data_type, plain_format, tensor{4, 1, 1, 1}}); // Indexes
+        auto input3 = engine.allocate_memory({data_type, plain_format, tensor{4, 1, 1, 1}}); // Updates
+        auto axis = 0;
+
+        set_values(input1, {
+                1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f
+        });
+
+        set_values(input2, {
+                4.f, 3.f, 1.f, 7.f
+        });
+
+        set_values(input3, {
+                9.0f, 10.0f, 11.0f, 12.0f
+        });
+
+        topology topology;
+        topology.add(input_layout("InputDictionary", input1->get_layout()));
+        topology.add(input_layout("InputText", input2->get_layout()));
+        topology.add(input_layout("InputUpdates", input3->get_layout()));
+        topology.add(reorder("DictionaryReordered", "InputDictionary", target_format, data_type));
+        topology.add(reorder("TextReordered", "InputText", target_format, data_type));
+        topology.add(reorder("UpdatesReordered", "InputUpdates", target_format, data_type));
+        topology.add(
+                scatter_update("scatter_update", "DictionaryReordered", "TextReordered", "UpdatesReordered", axis)
+        );
+        topology.add(reorder("out", "scatter_update", plain_format, data_type));
+
+        network network(engine, topology);
+
+
+        network.set_input_data("InputDictionary", input1);
+        network.set_input_data("InputText", input2);
+        network.set_input_data("InputUpdates", input3);
+
+        auto outputs = network.execute();
+
+        auto output = outputs.at("out").get_memory();
+        cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+        std::vector<float> expected_results = {
+                1.f, 11.f, 3.f, 10.f, 9.f, 6.f, 7.f, 12.f
+        };
+
+        for (size_t i = 0; i < expected_results.size(); ++i) {
+            EXPECT_EQ(expected_results[i], output_ptr[i])
+                                << "i=" << i << ", target_format=" << target_format;
+        }
+    }
+}
+
+
 TEST(scatter_update_gpu_fp16, d2411_axisB) {
     //  Dictionary : 2x4x1x1
     //  Indexes : 2x1x1x1
