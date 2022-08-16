@@ -143,8 +143,13 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
 //    const uint output_idx = OUTPUT_GET_INDEX(b, axis_index, y, x);
 //    const uint axis_index = indices[y/*OUTPUT_INDEX_ON_AXIS*/];
 //    const uint output_idx = OUTPUT_GET_INDEX(b, f, axis_index, x);
-    const uint axis_index = indices[x/*OUTPUT_INDEX_ON_AXIS*/];
-    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, axis_index);
+//    const uint axis_index = indices[x/*OUTPUT_INDEX_ON_AXIS*/];
+//    const uint output_idx = OUTPUT_GET_INDEX(b, f, y, axis_index);
+
+    const uint axis_idx = OUTPUT_INDEX_ON_AXIS;
+    const uint index_by_axis = indices[axis_idx];
+    const uint output_idx = GET_OUTPUT_INDEX(SECOND_ITER_OUTPUT_INDEX_ORDER);
+
 
     const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
 /*

@@ -174,7 +174,7 @@ static std::string GetOutputIndexOnAxis(const scatter_update_params& params, siz
 
 static std::vector<std::string> GetVectorSecondOutputIndexOrder(const scatter_update_params& params, size_t axis) {
     auto output_order = GetDefaultOrder(params.outputs[0].GetDims().size());
-    output_order[axis] = "convert_int(indices[OUTPUT_INDEX_ON_AXIS])";
+    output_order[axis] = "index_by_axis";
     return output_order;
 }
 
