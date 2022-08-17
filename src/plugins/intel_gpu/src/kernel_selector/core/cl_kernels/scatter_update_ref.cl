@@ -40,11 +40,11 @@ inline void FUNC(planar_to_bfyx)(const uint planar_index,
 }
 
 inline void FUNC(planar_to_bfzyx)(const uint planar_index,
-                                 const uint batch_num, const uint channel_num, const uint z_size, const uint y_size, const uint x_size,
+                                 const uint batch_num, const uint channel_num, const uint depth, const uint height, const uint width,
                                  uint* dst_b, uint* dst_f, uint* dst_z, uint* dst_y, uint* dst_x)
 {
-    const uint size_2d = y_size * x_size;
-    const uint feature_size = z_size * size_2d;
+    const uint matrix_size = height * width;
+    const uint feature_size = depth * matrix_size;
     const uint batch_size = channel_num * feature_size;
 
     *dst_b = planar_index / batch_size;
@@ -53,20 +53,20 @@ inline void FUNC(planar_to_bfzyx)(const uint planar_index,
     *dst_f = dst_fzxy / feature_size;
     const uint dst_zxy = dst_fzxy % feature_size;
 
-    *dst_z = dst_zxy / z_size;
-    const uint dst_xy = dst_zxy % z_size;
+    *dst_z = dst_zxy / matrix_size;
+    const uint dst_xy = dst_zxy % matrix_size;
 
-    *dst_y = dst_xy / x_size;
-    *dst_x = dst_xy % x_size;
+    *dst_y = dst_xy / width;
+    *dst_x = dst_xy % width;
 }
 
 inline void FUNC(planar_to_bfwzyx)(const uint planar_index,
-                                 const uint batch_num, const uint channel_num, const uint w_size, const uint z_size, const uint y_size, const uint x_size,
+                                 const uint batch_num, const uint channel_num, const uint w_depth, const uint depth, const uint height, const uint width,
                                  uint* dst_b, uint* dst_f, uint* dst_w, uint* dst_z, uint* dst_y, uint* dst_x)
 {
-    const uint size_2d = y_size * x_size;
-    const uint size_3d = z_size * size_2d;
-    const uint feature_size = w_size * size_3d;
+    const uint matrix_size = height * width;
+    const uint cube_size = depth * matrix_size;
+    const uint feature_size = w_depth * cube_size;
     const uint batch_size = channel_num * feature_size;
 
     *dst_b = planar_index / batch_size;
@@ -75,14 +75,14 @@ inline void FUNC(planar_to_bfwzyx)(const uint planar_index,
     *dst_f = dst_fwzxy / feature_size;
     const uint dst_wzxy = dst_fwzxy % feature_size;
 
-    *dst_w = dst_wzxy / w_size;
-    const uint dst_zxy = dst_wzxy % w_size;
+    *dst_w = dst_wzxy / cube_size;
+    const uint dst_zxy = dst_wzxy % cube_size;
 
-    *dst_z = dst_zxy / z_size;
-    const uint dst_xy = dst_zxy % z_size;
+    *dst_z = dst_zxy / matrix_size;
+    const uint dst_xy = dst_zxy % matrix_size;
 
-    *dst_y = dst_xy / x_size;
-    *dst_x = dst_xy % x_size;
+    *dst_y = dst_xy / width;
+    *dst_x = dst_xy % width;
 }
 
 #endif // BLOCKED_LAYOUT
