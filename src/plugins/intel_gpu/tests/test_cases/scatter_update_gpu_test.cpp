@@ -15,12 +15,13 @@ using namespace ::tests;
 
 const auto plain_2d_format = format::bfyx;
 const std::vector<format::type> formats2D{
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-//        format::b_fs_yx_fsv32,
-//        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32
+//        format::bfyx,
+//        format::b_fs_yx_fsv16,
+        // bad-pitched layouts
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+//        format::bs_fs_yx_bsv32_fsv16,
+//        format::bs_fs_yx_bsv32_fsv32
 };
 
 const auto plain_3d_format = format::bfzyx;

@@ -216,6 +216,12 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
             #error Unsupported updates rank
         #endif
 
+        printf("planar_updates_idx=%d b=%d f=%d y=%d x=%d   updates_idx=%d bb=%d ff=%d yy=%d xx=%d\n",
+                planar_updates_idx,
+                b, f, y, x,
+                updates_idx,
+                bb, ff, yy, xx);
+
     #else
         const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);
     #endif
