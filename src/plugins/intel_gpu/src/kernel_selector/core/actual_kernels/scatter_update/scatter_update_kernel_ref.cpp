@@ -62,6 +62,14 @@ ParamsKey ScatterUpdateKernelRef::GetSupportedKey() const {
     k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv16);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv16_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv16_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv32_fsv32);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv32_fsv32);
+    k.EnableInputLayout(DataLayout::bs_fs_zyx_bsv32_fsv16);
+    k.EnableOutputLayout(DataLayout::bs_fs_zyx_bsv32_fsv16);
     k.EnableTensorOffset();
     k.EnableTensorPitches();
     k.EnableBatching();
