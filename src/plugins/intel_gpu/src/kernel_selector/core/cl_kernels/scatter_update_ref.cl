@@ -13,7 +13,6 @@
 #define AXIS_X (OUTPUT_DIMS - 1)
 
 #define GET_OUTPUT_INDEX(idx_order) OUTPUT_GET_INDEX(idx_order)
-#define MY_GET_UPDATES_INDEX(idx_order) INPUT2_GET_INDEX(idx_order)
 
 #if OUTPUT_DIMS == 4
     #define ORDER b,f,y,x
@@ -216,11 +215,6 @@ KERNEL(scatter_update_ref)(const __global INPUT0_TYPE* dictionary,
             #error Unsupported updates rank
         #endif
 
-        printf("planar_updates_idx=%d b=%d f=%d y=%d x=%d   updates_idx=%d bb=%d ff=%d yy=%d xx=%d\n",
-                planar_updates_idx,
-                b, f, y, x,
-                updates_idx,
-                bb, ff, yy, xx);
 
     #else
         const uint updates_idx = GET_UPDATES_INDEX(UPDATES_INDEX_ORDER);

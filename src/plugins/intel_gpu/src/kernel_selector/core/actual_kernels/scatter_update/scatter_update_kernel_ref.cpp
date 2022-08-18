@@ -205,6 +205,18 @@ static std::string GetSecondIterOutputIndexOrder(const scatter_update_params& pa
     return GetOrderString(output_order);
 }
 
+static std::vector<size_t> GetPlanarPitches(const Tensor::NDims& dims) {
+    const auto ndims = dims.size();
+    std::vector<size_t> pitches(ndims);
+    size_t pitch = 1;
+    for (size_t i = 0; i < ndims; ++i) {
+        pitches[i] = pitch;
+        pitch *= dims[i].v;
+    }
+    std::reverse(pitches.begin(), pitches.end());
+    return pitches;
+}
+
 JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params& params) const {
     size_t axis_value = GetScatterUpdateChannelIndex(params);
 
@@ -218,6 +230,8 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
         jit.AddConstant(MakeJitConstant("BLOCKED_LAYOUT", "1"));
     }
 
+    const auto pitches = GetPlanarPitches(params.outputs[0].GetDims());
+
     jit.AddConstant(MakeJitConstant("UPDATES_INDEX_ORDER", GetUpdatesIndexOrder(params)));
     jit.AddConstant(MakeJitConstant("SECOND_ITER_OUTPUT_INDEX_ORDER", GetSecondIterOutputIndexOrder(params, GetScatterUpdateChannelIndex(params))));
     jit.AddConstant(MakeJitConstant("OUTPUT_INDEX_ON_AXIS", GetOutputIndexOnAxis(params, GetScatterUpdateChannelIndex(params))));
@@ -227,15 +241,14 @@ JitConstants ScatterUpdateKernelRef::GetJitConstants(const scatter_update_params
     auto default_order = GetDefaultOrder(params.outputs[0].GetDims().size());
     size_t dims = default_order.size();
     std::string get_update_idx = "(INPUT2_OFFSET)";
-    std::string output_size_feature = "OUTPUT_FEATURE_NUM";
     for (size_t i = 0; i < dims; ++i) {
         if (i >= axis_value) {
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
-            std::string src_pitch = "(OUTPUT_" + GetAxisName(dims, i) + "_PITCH)";
+            std::string src_pitch = "(" + std::to_string(pitches[i]) + ")";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
         } else if (i == (axis_value - 1)) {
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH";
-            std::string src_pitch = "(OUTPUT_" + GetAxisName(dims, i + 1) + "_PITCH * INDICES_SIZE)";
+            std::string src_pitch = "(" + std::to_string(pitches[i + 1]) + " * INDICES_SIZE)";
             jit.AddConstant(MakeJitConstant(def_pitch, src_pitch));
         } else { // i < axis_value - 1
             std::string def_pitch = "UPDATES_" + GetAxisName(dims, i) + "_PITCH" + "";
