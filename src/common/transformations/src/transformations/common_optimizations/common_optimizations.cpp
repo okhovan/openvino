@@ -199,7 +199,6 @@ bool ngraph::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ngrap
     manager.register_pass<ngraph::pass::ConvertSoftMax1ToSoftMax8, false>();
     manager.register_pass<ngraph::pass::ConvertMaxPool8ToMaxPool1>();
     manager.register_pass<ngraph::pass::ConvertMaxPool1ToMaxPool8, false>();
-    manager.register_pass<ngraph::pass::ConvertPriorBox8To0>();  // not plugins implemented priorbox8
     manager.register_pass<ngraph::pass::ConvertDetectionOutput1ToDetectionOutput8, false>();
     manager.register_pass<ngraph::pass::ConvertDetectionOutput8ToDetectionOutput1>();
     manager.register_pass<ngraph::pass::ConvertROIAlign3To9, false>();

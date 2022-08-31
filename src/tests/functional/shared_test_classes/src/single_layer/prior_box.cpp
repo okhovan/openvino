@@ -66,6 +66,8 @@ void PriorBoxLayerTest::SetUp() {
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes, imageShapes});
+    auto paramOuts = ngraph::helpers::convert2OutputVector(
+            ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
 
     ngraph::op::v8::PriorBox::Attributes attributes;
     attributes.min_size = min_size;
@@ -81,11 +83,9 @@ void PriorBoxLayerTest::SetUp() {
     attributes.flip = flip;
     attributes.min_max_aspect_ratios_order = min_max_aspect_ratios_order;
 
-    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
-    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
     auto priorBox = std::make_shared<ngraph::op::v8::PriorBox>(
-        shape_of_1,
-        shape_of_2,
+        paramOuts[0],
+        paramOuts[1],
         attributes);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
