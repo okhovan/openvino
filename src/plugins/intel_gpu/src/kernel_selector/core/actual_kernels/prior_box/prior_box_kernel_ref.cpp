@@ -28,10 +28,10 @@ KernelsData PriorBoxKernelRef::GetKernelsData(const Params& params, const option
     KernelData kernel_data = KernelData::Default<prior_box_params>(params);
     const prior_box_params& new_params = dynamic_cast<const prior_box_params&>(*kernel_data.params.get());
 
-    auto dispatch_data = SetDefault(new_params, options);
-    auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
-    auto specific_jit = GetJitConstants(new_params);
-    auto jit = CreateJit(kernelName, specific_jit, entry_point);
+    const auto dispatch_data = SetDefault(new_params, options);
+    const auto entry_point = GetEntryPoint(kernelName, new_params.layerID, params, options);
+    const auto specific_jit = GetJitConstants(new_params);
+    const auto jit = CreateJit(kernelName, specific_jit, entry_point);
     FillCLKernelData(kernel_data.kernels[0],
                      dispatch_data,
                      params.engineInfo,
@@ -50,7 +50,7 @@ KernelsData PriorBoxKernelRef::GetKernelsData(const Params& params, const option
 
 KernelsPriority PriorBoxKernelRef::GetKernelsPriority(const Params& /*params*/,
                                                       const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_1;
+    return DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
 
 ParamsKey PriorBoxKernelRef::GetSupportedKey() const {

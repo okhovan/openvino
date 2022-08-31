@@ -58,8 +58,6 @@ public:
 
         auto outputs = network.execute();
 
-        EXPECT_EQ(outputs.begin()->first, "prior_box");
-
         auto output = outputs.at("prior_box").get_memory();
 
         cldnn::mem_lock<OutputType> output_ptr(output, get_test_stream());

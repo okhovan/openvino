@@ -60,7 +60,7 @@ const auto layerSpecificParams = ::testing::Combine(::testing::ValuesIn(min_size
                                                     ::testing::ValuesIn(scale_all_sizes),
                                                     ::testing::ValuesIn(min_max_aspect_ratios_order));
 
-INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic_GPU,
+INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic,
                          PriorBoxLayerTest,
                          ::testing::Combine(layerSpecificParams,
                                             ::testing::ValuesIn(netPrecisions),

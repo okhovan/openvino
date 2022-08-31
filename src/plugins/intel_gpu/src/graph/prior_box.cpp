@@ -8,7 +8,7 @@
 #include "prior_box_inst.h"
 
 namespace {
-std::string vector_to_string(std::vector<float> vec) {
+std::string vector_to_string(const std::vector<float>& vec) {
     std::stringstream result;
     for (size_t i = 0; i < vec.size(); i++)
         result << vec.at(i) << ", ";
