@@ -28,11 +28,11 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         auto& kernel_selector = kernel_selector::prior_box_kernel_selector::Instance();
         const auto& primitive = arg.get_primitive();
 
-        params.min_size = primitive->attributes.min_size;
-        params.max_size = primitive->attributes.max_size;
-        params.density = primitive->attributes.density;
-        params.fixed_ratio = primitive->attributes.fixed_ratio;
-        params.fixed_size = primitive->attributes.fixed_size;
+        params.min_size = primitive->attributes.min_sizes;
+        params.max_size = primitive->attributes.max_sizes;
+        params.density = primitive->attributes.densities;
+        params.fixed_ratio = primitive->attributes.fixed_ratios;
+        params.fixed_size = primitive->attributes.fixed_sizes;
         params.clip = primitive->attributes.clip;
         params.flip = primitive->attributes.flip;
         params.step = primitive->attributes.step;
@@ -40,7 +40,7 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         params.scale_all_sizes = primitive->attributes.scale_all_sizes;
         params.min_max_aspect_ratios_order = primitive->attributes.min_max_aspect_ratios_order;
         params.aspect_ratio = primitive->aspect_ratios;
-        params.variance = primitive->variance;
+        params.variance = primitive->variances;
         params.reverse_image_width = primitive->reverse_image_width;
         params.reverse_image_height = primitive->reverse_image_height;
         params.step_x = primitive->step_x;
@@ -49,8 +49,8 @@ struct prior_box_impl : typed_primitive_impl_ocl<prior_box> {
         params.height = primitive->height;
         params.widths = primitive->attributes.widths;
         params.heights = primitive->attributes.heights;
-        params.step_widths = primitive->attributes.step_widths;
-        params.step_heights = primitive->attributes.step_heights;
+        params.step_widths = primitive->attributes.step_width;
+        params.step_heights = primitive->attributes.step_height;
         params.is_clustered = primitive->is_clustered();
         auto output_shape = impl_param.output_layout.get_shape();
         params.num_priors_4 = output_shape[1] / (params.width * params.height);

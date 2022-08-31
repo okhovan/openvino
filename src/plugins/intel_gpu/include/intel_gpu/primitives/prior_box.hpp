@@ -14,23 +14,23 @@
 namespace cldnn {
 
 struct prior_box_attributes {
-    std::vector<float> min_size;       // Desired min_size of prior boxes
-    std::vector<float> max_size;       // Desired max_size of prior boxes
-    std::vector<float> aspect_ratio;   // Aspect ratios of prior boxes
-    std::vector<float> density;        // This is the square root of the number of boxes of each type
-    std::vector<float> fixed_ratio;    // This is an aspect ratio of a box
-    std::vector<float> fixed_size;     // This is an initial box size (in pixels)
-    bool clip;                         // Clip output to [0,1]
-    bool flip;                         // Flip aspect ratios
-    float step;                        // Distance between prior box centers
-    float offset;                      // Box offset relative to top center of image
-    std::vector<float> variance;       // Values to adjust prior boxes with
-    bool scale_all_sizes;              // Scale all sizes
-    bool min_max_aspect_ratios_order;  // Order of output prior box
-    std::vector<float> widths;         // Widths
-    std::vector<float> heights;        // Heights
-    float step_widths;                 // Distance between box centers in width
-    float step_heights;                // Distance between box centers in heigth
+    std::vector<float> min_sizes;            // Desired min_size of prior boxes
+    std::vector<float> max_sizes;            // Desired max_size of prior boxes
+    std::vector<float> aspect_ratios;        // Aspect ratios of prior boxes
+    std::vector<float> densities;            // This is the square root of the number of boxes of each type
+    std::vector<float> fixed_ratios;         // This is an aspect ratio of a box
+    std::vector<float> fixed_sizes;          // This is an initial box size (in pixels)
+    bool clip{false};                        // Clip output to [0,1]
+    bool flip{false};                        // Flip aspect ratios
+    float step{0.0f};                        // Distance between prior box centers
+    float offset{0.0f};                      // Box offset relative to top center of image
+    std::vector<float> variances;            // Values to adjust prior boxes with
+    bool scale_all_sizes{true};              // Scale all sizes
+    bool min_max_aspect_ratios_order{true};  // Order of output prior box
+    std::vector<float> widths;               // Widths
+    std::vector<float> heights;              // Heights
+    float step_width{0.0f};                  // Distance between box centers in width
+    float step_height{0.0f};                 // Distance between box centers in heigth
 };
 
 /// @addtogroup cpp_api C++ API
@@ -52,7 +52,7 @@ struct prior_box : public primitive_base<prior_box> {
               int32_t width,
               int32_t image_height,
               int32_t image_width,
-              prior_box_attributes attributes,
+              const prior_box_attributes& attributes,
               const cldnn::data_types output_type)
         : primitive_base{id, inputs, padding(), optional_data_type(output_type)},
           attributes{attributes},
@@ -61,7 +61,7 @@ struct prior_box : public primitive_base<prior_box> {
           image_width{image_width},
           image_height{image_height} {
         aspect_ratios = {1.0f};
-        for (const auto& aspect_ratio : attributes.aspect_ratio) {
+        for (const auto& aspect_ratio : attributes.aspect_ratios) {
             bool exist = false;
             for (const auto existed_value : aspect_ratios) {
                 exist |= std::fabs(aspect_ratio - existed_value) < 1e-6;
@@ -75,13 +75,13 @@ struct prior_box : public primitive_base<prior_box> {
             }
         }
 
-        variance = attributes.variance;
-        if (variance.empty()) {
-            variance.push_back(0.1f);
+        variances = attributes.variances;
+        if (variances.empty()) {
+            variances.push_back(0.1f);
         }
 
         float step = attributes.step;
-        auto min_size = attributes.min_size;
+        auto min_size = attributes.min_sizes;
         if (!attributes.scale_all_sizes) {
             // mxnet-like PriorBox
             if (step == -1) {
@@ -113,7 +113,7 @@ public:
     prior_box_attributes attributes;
     // calculated attributes
     std::vector<float> aspect_ratios;
-    std::vector<float> variance;
+    std::vector<float> variances;
     float reverse_image_width, reverse_image_height;
     float step_x, step_y;
     int64_t width, height;

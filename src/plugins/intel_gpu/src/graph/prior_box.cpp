@@ -83,12 +83,12 @@ prior_box_node::typed_program_node(std::shared_ptr<prior_box> prim, program& pro
 layout prior_box_inst::calc_output_layout(prior_box_node const& node, kernel_impl_params const& impl_param) {
     auto primitive = node.get_primitive();
     const auto attrs = primitive->attributes;
-    int64_t number = number_of_priors(attrs.aspect_ratio,
-                                      attrs.min_size,
-                                      attrs.max_size,
-                                      attrs.fixed_size,
-                                      attrs.fixed_ratio,
-                                      attrs.density,
+    int64_t number = number_of_priors(attrs.aspect_ratios,
+                                      attrs.min_sizes,
+                                      attrs.max_sizes,
+                                      attrs.fixed_sizes,
+                                      attrs.fixed_ratios,
+                                      attrs.densities,
                                       attrs.scale_all_sizes,
                                       attrs.flip);
     if (primitive->is_clustered()) {
@@ -106,13 +106,13 @@ std::string prior_box_inst::to_string(prior_box_node const& node) {
     auto scale_all_sizes = desc->attributes.scale_all_sizes ? "true" : "false";
     auto node_info = node.desc_to_json();
 
-    std::string str_min_sizes = vector_to_string(desc->attributes.min_size);
-    std::string str_max_sizes = vector_to_string(desc->attributes.max_size);
-    std::string str_variance = vector_to_string(desc->variance);
+    std::string str_min_sizes = vector_to_string(desc->attributes.min_sizes);
+    std::string str_max_sizes = vector_to_string(desc->attributes.max_sizes);
+    std::string str_variance = vector_to_string(desc->variances);
     std::string str_aspect_ratio = vector_to_string(desc->aspect_ratios);
-    std::string str_fixed_size = vector_to_string(desc->attributes.fixed_size);
-    std::string str_fixed_ratio = vector_to_string(desc->attributes.fixed_ratio);
-    std::string str_density = vector_to_string(desc->attributes.density);
+    std::string str_fixed_size = vector_to_string(desc->attributes.fixed_sizes);
+    std::string str_fixed_ratio = vector_to_string(desc->attributes.fixed_ratios);
+    std::string str_density = vector_to_string(desc->attributes.densities);
 
     std::stringstream primitive_description;
 
