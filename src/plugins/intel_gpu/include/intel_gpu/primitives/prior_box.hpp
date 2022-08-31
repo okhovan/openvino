@@ -20,17 +20,17 @@ struct prior_box_attributes {
     std::vector<float> densities;            // This is the square root of the number of boxes of each type
     std::vector<float> fixed_ratios;         // This is an aspect ratio of a box
     std::vector<float> fixed_sizes;          // This is an initial box size (in pixels)
-    bool clip{false};                        // Clip output to [0,1]
-    bool flip{false};                        // Flip aspect ratios
-    float step{0.0f};                        // Distance between prior box centers
-    float offset{0.0f};                      // Box offset relative to top center of image
+    bool clip;                        // Clip output to [0,1]
+    bool flip;                        // Flip aspect ratios
+    float step;                        // Distance between prior box centers
+    float offset;                      // Box offset relative to top center of image
     std::vector<float> variances;            // Values to adjust prior boxes with
-    bool scale_all_sizes{true};              // Scale all sizes
-    bool min_max_aspect_ratios_order{true};  // Order of output prior box
+    bool scale_all_sizes;              // Scale all sizes
+    bool min_max_aspect_ratios_order;  // Order of output prior box
     std::vector<float> widths;               // Widths
     std::vector<float> heights;              // Heights
-    float step_width{0.0f};                  // Distance between box centers in width
-    float step_height{0.0f};                 // Distance between box centers in heigth
+    float step_width;                  // Distance between box centers in width
+    float step_height;                 // Distance between box centers in heigth
 };
 
 /// @addtogroup cpp_api C++ API
