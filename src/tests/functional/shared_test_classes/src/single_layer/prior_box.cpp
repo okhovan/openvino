@@ -65,6 +65,7 @@ void PriorBoxLayerTest::SetUp() {
              min_max_aspect_ratios_order) = specParams;
 
     auto ngPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(netPrecision);
+    //auto params = ngraph::builder::makeParams(ngPrc, { {inputShapes.size()}, {imageShapes.size()} });
     auto params = ngraph::builder::makeParams(ngPrc, {inputShapes, imageShapes});
     auto paramOuts = ngraph::helpers::convert2OutputVector(
             ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(params));
@@ -83,9 +84,20 @@ void PriorBoxLayerTest::SetUp() {
     attributes.flip = flip;
     attributes.min_max_aspect_ratios_order = min_max_aspect_ratios_order;
 
+    auto shape1 = std::make_shared<ov::opset8::Constant>(ov::element::i32, ngraph::Shape{inputShapes.size()}, inputShapes);
+    auto shape2 = std::make_shared<ov::opset8::Constant>(ov::element::i32, ngraph::Shape{imageShapes.size()}, imageShapes);
+
+//    auto shape1 = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(inputShapes.size()));
+//    auto shape2 = std::make_shared<ngraph::op::Parameter>(ngPrc, ngraph::Shape(imageShapes.size()));
+
+    auto shape_of_1 = std::make_shared<ngraph::opset3::ShapeOf>(params[0]);
+    auto shape_of_2 = std::make_shared<ngraph::opset3::ShapeOf>(params[1]);
+
     auto priorBox = std::make_shared<ngraph::op::v8::PriorBox>(
-        paramOuts[0],
-        paramOuts[1],
+            params[0], params[1],
+//          shape1, shape2,
+//        shape_of_1, shape_of_2,
+//        paramOuts[0], paramOuts[1],
         attributes);
 
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(priorBox)};
