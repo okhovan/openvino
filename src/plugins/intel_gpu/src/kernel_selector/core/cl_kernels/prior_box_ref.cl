@@ -49,6 +49,8 @@ KERNEL(prior_box_ref)
 (const __global INPUT0_TYPE* output_size, const __global INPUT1_TYPE* image_size, __global OUTPUT_TYPE* output) {
     const uint w = get_global_id(0);
     const uint h = get_global_id(1);
+    const uint out_index = FUNC_CALL(get_index)(w, h);
+
 
     OUTPUT_TYPE center_x, center_y;
     #ifdef PRIOR_BOX_STEP
@@ -65,7 +67,6 @@ KERNEL(prior_box_ref)
         for (uint s = 0; s < num_priors; ++s) {
             box_width = PRIOR_BOX_WIDTHS[s];
             box_height = PRIOR_BOX_WIDTHS[s];
-            uint out_index = FUNC_CALL(get_index)(w, h);
             FUNC_CALL(calculate_data)
             (center_x, center_y, box_width, box_height, true, out_index, output);
         }
@@ -92,7 +93,6 @@ KERNEL(prior_box_ref)
                     for (uint c = 0; c < density_; ++c) {
                         OUTPUT_TYPE center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
                         OUTPUT_TYPE center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
-                        uint out_index = FUNC_CALL(get_index)(w, h);
                         FUNC_CALL(calculate_data)
                         (center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true, out_index, output);
                     }
@@ -106,7 +106,6 @@ KERNEL(prior_box_ref)
                     for (uint c = 0; c < density_; ++c) {
                         OUTPUT_TYPE center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
                         OUTPUT_TYPE center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
-                        uint out_index = FUNC_CALL(get_index)(w, h);
                         FUNC_CALL(calculate_data)
                         (center_x_temp, center_y_temp, box_width, box_height, true, out_index, output);
                     }
@@ -128,7 +127,6 @@ KERNEL(prior_box_ref)
                         for (uint c = 0; c < density_; ++c) {
                             OUTPUT_TYPE center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
                             OUTPUT_TYPE center_y_temp = center_y - fixed_size_ / 2 + shift / 2.f + r * shift;
-                            uint out_index = FUNC_CALL(get_index)(w, h);
                             FUNC_CALL(calculate_data)
                             (center_x_temp, center_y_temp, box_width_ratio, box_height_ratio, true, out_index, output);
                         }
@@ -141,13 +139,11 @@ KERNEL(prior_box_ref)
     for (uint ms_idx = 0; ms_idx < PRIOR_BOX_MIN_SIZE_SIZE; ++ms_idx) {
         box_width = PRIOR_BOX_MIN_SIZE[ms_idx] * 0.5f;
         box_height = PRIOR_BOX_MIN_SIZE[ms_idx] * 0.5f;
-        uint out_index = FUNC_CALL(get_index)(w, h);
         FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index, output);
         #ifdef PRIOR_BOX_MIN_MAX_ASPECT_RATIO_ORDER
             if (PRIOR_BOX_MAX_SIZE_SIZE > ms_idx) {
                 box_width = box_height = sqrt(PRIOR_BOX_MIN_SIZE[ms_idx] * PRIOR_BOX_MAX_SIZE[ms_idx]) * 0.5f;
-                out_index = FUNC_CALL(get_index)(w, h) + 4;
-                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index, output);
+                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 4, output);
             }
 
             if (PRIOR_BOX_SCALE_ALL_SIZES || (!PRIOR_BOX_SCALE_ALL_SIZES && (ms_idx == PRIOR_BOX_MIN_SIZE_SIZE - 1))) {
@@ -161,8 +157,7 @@ KERNEL(prior_box_ref)
                     ar = sqrt(ar);
                     box_width = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f * ar;
                     box_height = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f / ar;
-                    out_index = FUNC_CALL(get_index)(w, h) + 8;
-                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index, output);
+                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 8, output);
                 }
             }
         #else
@@ -177,21 +172,18 @@ KERNEL(prior_box_ref)
                     ar = sqrt(ar);
                     box_width = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f * ar;
                     box_height = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f / ar;
-                    out_index = FUNC_CALL(get_index)(w, h) + 4;
-                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index, output);
+                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 4, output);
                 }
             }
 
             if (PRIOR_BOX_MAX_SIZE_SIZE > ms_idx) {
                 box_width = box_height = sqrt(PRIOR_BOX_MIN_SIZE[ms_idx] * PRIOR_BOX_MAX_SIZE[ms_idx]) * 0.5f;
-                out_index = FUNC_CALL(get_index)(w, h) + 8;
-                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index, output);
+                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 8, output);
             }
         #endif
     }
 
     #ifdef PRIOR_BOX_CLIP
-        uint out_index = FUNC_CALL(get_index)(w, h);
         for (uint i = out_index; i < (out_index + PRIOR_BOX_NUM_PRIORS_4); ++i) {
             output[i] = (min)((max)(output[i], 0.0f), 1.0f);
         }
@@ -204,7 +196,6 @@ KERNEL(prior_box_ref)
         uint var_loop_count = 4;
     #endif
 
-    uint out_index = FUNC_CALL(get_index)(w, h);
     #if PRIOR_BOX_VARIANCE_SIZE == 1
         for (uint i = out_index; i < (out_index + PRIOR_BOX_NUM_PRIORS_4); ++i) {
             output[i + channel_size] = PRIOR_BOX_VARIANCE[0];
