@@ -141,18 +141,23 @@ static void CreatePriorBoxOp(Program& p, const std::shared_ptr<ngraph::op::v8::P
     pr_attrs.step = attrs.step;
     pr_attrs.min_max_aspect_ratios_order = attrs.min_max_aspect_ratios_order;
 
-    auto img_pshape = op->get_input_partial_shape(1);
-    OPENVINO_ASSERT(img_pshape.is_static(), "Dynamic shapes are not supported for PriorBox operation yet");
+    const auto output_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(0));
+    if (!output_size_constant) {
+        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    }
+    const auto output_size = output_size_constant->cast_vector<int64_t>();
+    const auto width = output_size[0];
+    const auto height = output_size[1];
 
-    auto output_size_dims = op->get_input_shape(0);
-    auto img_dims = op->get_input_shape(1);
+    const auto image_size_constant = std::dynamic_pointer_cast<ngraph::op::Constant>(op->get_input_node_shared_ptr(1));
+    if (!image_size_constant) {
+        IE_THROW() << "Unsupported parameter nodes type in " << op->get_friendly_name() << " (" << op->get_type_name() << ")";
+    }
+    const auto img_size = image_size_constant->cast_vector<int64_t>();
+    const auto image_width = img_size[0];
+    const auto image_height = img_size[1];
 
-    auto width = output_size_dims[0];
-    auto height = output_size_dims[1];
-    auto image_width = img_dims[0];
-    auto image_height = img_dims[1];
-
-    auto priorBoxPrim = cldnn::prior_box(layerName,
+    const auto priorBoxPrim = cldnn::prior_box(layerName,
                                          inputPrimitives,
                                          height,
                                          width,
