@@ -111,7 +111,6 @@ KERNEL(prior_box_ref)
                         (center_x_temp, center_y_temp, box_width, box_height, true, out_index, output);
                     }
                 }
-            }
             #endif
             //  Rest of priors
             for (uint k = 0; k < PRIOR_BOX_ASPECT_RATIO_SIZE; ++k) {
