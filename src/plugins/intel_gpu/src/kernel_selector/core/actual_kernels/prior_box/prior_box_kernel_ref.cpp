@@ -92,12 +92,20 @@ JitConstants PriorBoxKernelRef::GetJitConstants(const prior_box_params& params) 
     jit.AddConstant(MakeJitConstant(name + "DENSITY", params.density));
     jit.AddConstant(MakeJitConstant(name + "FIXED_RATIO", params.fixed_ratio));
     jit.AddConstant(MakeJitConstant(name + "FIXED_SIZE", params.fixed_size));
-    jit.AddConstant(MakeJitConstant(name + "CLIP", params.clip));
-    jit.AddConstant(MakeJitConstant(name + "FLIP", params.flip));
-    jit.AddConstant(MakeJitConstant(name + "STEP", params.step));
+    if (params.clip) {
+        jit.AddConstant(MakeJitConstant(name + "CLIP", 1));
+    }
+    if (params.flip) {
+        jit.AddConstant(MakeJitConstant(name + "FLIP", 1));
+    }
+    if (params.step != 0.0f) {
+        jit.AddConstant(MakeJitConstant(name + "STEP", params.step));
+    }
     jit.AddConstant(MakeJitConstant(name + "OFFSET", params.offset));
     jit.AddConstant(MakeJitConstant(name + "SCALE_ALL_SIZES", params.scale_all_sizes));
-    jit.AddConstant(MakeJitConstant(name + "MIN_MAX_ASPECT_RATIO_ORDER", params.min_max_aspect_ratios_order));
+    if (params.min_max_aspect_ratios_order) {
+        jit.AddConstant(MakeJitConstant(name + "MIN_MAX_ASPECT_RATIO_ORDER", 1));
+    }
     jit.AddConstant(MakeJitConstant(name + "ASPECT_RATIO", params.aspect_ratio));
     jit.AddConstant(MakeJitConstant(name + "VARIANCE", params.variance));
     jit.AddConstant(MakeJitConstant(name + "IWI", params.reverse_image_width));
@@ -111,7 +119,9 @@ JitConstants PriorBoxKernelRef::GetJitConstants(const prior_box_params& params) 
     jit.AddConstant(MakeJitConstant(name + "HEIGHTS", params.heights));
     jit.AddConstant(MakeJitConstant(name + "STEP_WIDTHS", params.step_widths));
     jit.AddConstant(MakeJitConstant(name + "STEP_HEIGHTS", params.step_heights));
-    jit.AddConstant(MakeJitConstant(name + "IS_CLUSTERED", params.is_clustered));
+    if (params.is_clustered) {
+        jit.AddConstant(MakeJitConstant(name + "IS_CLUSTERED", 1));
+    }
 
     return jit;
 }
