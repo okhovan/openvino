@@ -99,7 +99,7 @@ KERNEL(prior_box_ref)
                 }
             }
         #else
-            #if PRIOR_BOX_DENSITY_SIZE > 0
+            #if PRIOR_BOX_DENSITY_SIZE > 0 && PRIOR_BOX_FIXED_SIZE_SIZE > 0
                 uint density_ = PRIOR_BOX_DENSITY[s];
                 uint shift = PRIOR_BOX_FIXED_SIZE[s] / density_;
                 for (uint r = 0; r < density_; ++r) {
