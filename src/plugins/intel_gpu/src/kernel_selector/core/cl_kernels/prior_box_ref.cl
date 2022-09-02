@@ -55,6 +55,9 @@ KERNEL(prior_box_ref)
     const uint w = get_global_id(0);
     const uint h = get_global_id(1);
     uint out_index = FUNC_CALL(get_index)(w, h);
+    #ifdef PRIOR_BOX_CLIP
+        const uint start_out_index = out_index;
+    #endif
 /*
     if (w==0 && h==0 && PRIOR_BOX_ASPECT_RATIO_SIZE!=0) {
         for (uint k = 0; k < PRIOR_BOX_ASPECT_RATIO_SIZE; ++k) {
@@ -214,7 +217,8 @@ KERNEL(prior_box_ref)
 //    }
 
     #ifdef PRIOR_BOX_CLIP
-        for (uint i = out_index; i < (out_index + PRIOR_BOX_NUM_PRIORS_4); ++i) {
+        //for (uint i = 0; i < WIDTH * HEIGHT * PRIOR_BOX_NUM_PRIORS_4; ++i) {
+        for (uint i = start_out_index; i <= out_index; ++i) {
             output[i] = (min)((max)(output[i], 0.0f), 1.0f);
         }
     #endif
