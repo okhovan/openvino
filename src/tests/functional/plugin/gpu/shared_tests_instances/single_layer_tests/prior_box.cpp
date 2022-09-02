@@ -46,6 +46,25 @@ const std::vector<bool> min_max_aspect_ratios_order = {false, true};
 const std::vector<size_t> inputShape = {300, 300};
 const std::vector<size_t> imageShape = {32, 32};
 
+
+/////////// Values from unit test
+//const std::vector<std::vector<float>> min_sizes = {{2.0f}};
+//const std::vector<std::vector<float>> max_sizes = {{5.0f}};
+//const std::vector<std::vector<float>> aspect_ratios = {{1.5f}};
+//const std::vector<std::vector<float>> densities = {{}};
+//const std::vector<std::vector<float>> fixed_ratios = {{}};
+//const std::vector<std::vector<float>> fixed_sizes = {{}};
+//const std::vector<bool> clips = {false};
+//const std::vector<bool> flips = {false};
+//const std::vector<float> steps = {0.0f};
+//const std::vector<float> offsets = {0.0f};
+//const std::vector<std::vector<float>> variances = {{}};
+//const std::vector<bool> scale_all_sizes = {true};
+//const std::vector<bool> min_max_aspect_ratios_order = {false};
+//const std::vector<size_t> inputShape = {2, 2};
+//const std::vector<size_t> imageShape = {10, 10};
+
+
 const auto layerSpecificParams = ::testing::Combine(::testing::ValuesIn(min_sizes),
                                                     ::testing::ValuesIn(max_sizes),
                                                     ::testing::ValuesIn(aspect_ratios),
@@ -65,7 +84,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_PriorBox_Basic,
                          ::testing::Combine(layerSpecificParams,
                                             ::testing::ValuesIn(netPrecisions),
                                             ::testing::Values(InferenceEngine::Precision::I32),
-                                            ::testing::Values(InferenceEngine::Precision::I32),
+                                            ::testing::Values(InferenceEngine::Precision::FP32),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(InferenceEngine::Layout::ANY),
                                             ::testing::Values(inputShape),
