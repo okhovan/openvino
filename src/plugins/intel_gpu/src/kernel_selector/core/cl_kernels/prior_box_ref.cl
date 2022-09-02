@@ -50,8 +50,20 @@ KERNEL(prior_box_ref)
     const uint w = get_global_id(0);
     const uint h = get_global_id(1);
     const uint out_index = FUNC_CALL(get_index)(w, h);
-
-
+/*
+    if (w==0 && h==0 && PRIOR_BOX_ASPECT_RATIO_SIZE!=0) {
+        for (uint k = 0; k < PRIOR_BOX_ASPECT_RATIO_SIZE; ++k) {
+            OUTPUT_TYPE ar = PRIOR_BOX_ASPECT_RATIO[k];
+            printf("ar[%d]=%f", k, ar);
+            if (fabs(ar - 1.) < 1e-6) {
+                printf(", skipped\n");
+                continue;
+            } else {
+                printf("\n");
+            }
+        }
+    }
+*/
     OUTPUT_TYPE center_x, center_y;
     #ifdef PRIOR_BOX_STEP
         center_x = (PRIOR_BOX_OFFSET + w) * PRIOR_BOX_STEP;
@@ -82,8 +94,8 @@ KERNEL(prior_box_ref)
         box_height = box_width = fixed_size_ * 0.5f;
 
         #if PRIOR_BOX_FIXED_RATIO_SIZE > 0
-            for (uint k = 0; k < PRIOR_BOX_ASPECT_RATIO_SIZE; ++k) {
-                OUTPUT_TYPE ar = PRIOR_BOX_ASPECT_RATIO[k];
+            for (uint k = 0; k < PRIOR_BOX_FIXED_RATIO_SIZE; ++k) {
+                OUTPUT_TYPE ar = PRIOR_BOX_FIXED_RATIO[k];
                 uint density_ = PRIOR_BOX_DENSITY[s];
                 uint shift = PRIOR_BOX_FIXED_SIZE[s] / density_;
                 ar = sqrt(ar);
