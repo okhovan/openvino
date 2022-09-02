@@ -42,6 +42,10 @@ inline void FUNC(calculate_data)(OUTPUT_TYPE center_x,
                 dst_data[idx + i] *= 0.5;
             }
         #endif
+
+        printf("%d %f %f %f %f\n",
+               output_index,
+               dst_data[idx], dst_data[idx + 1], dst_data[idx + 2], dst_data[idx + 3]);
     }
 };
 
@@ -156,6 +160,8 @@ KERNEL(prior_box_ref)
             if (PRIOR_BOX_MAX_SIZE_SIZE > ms_idx) {
                 box_width = box_height = sqrt(PRIOR_BOX_MIN_SIZE[ms_idx] * PRIOR_BOX_MAX_SIZE[ms_idx]) * 0.5f;
                 FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 4, output);
+                //printf("1: %d %d %d %f\n", out_index, w, h, output[out_index]);
+
             }
 
             if (PRIOR_BOX_SCALE_ALL_SIZES || (!PRIOR_BOX_SCALE_ALL_SIZES && (ms_idx == PRIOR_BOX_MIN_SIZE_SIZE - 1))) {
@@ -170,6 +176,7 @@ KERNEL(prior_box_ref)
                     box_width = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f * ar;
                     box_height = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f / ar;
                     FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 8, output);
+                    //printf("2: %d %d %d %f\n", out_index, w, h, output[out_index]);
                 }
             }
         #else
@@ -185,14 +192,24 @@ KERNEL(prior_box_ref)
                     box_width = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f * ar;
                     box_height = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f / ar;
                     FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 4, output);
+                    //printf("3: %d %d %d %f\n", out_index, w, h, output[out_index]);
                 }
             }
 
             if (PRIOR_BOX_MAX_SIZE_SIZE > ms_idx) {
                 box_width = box_height = sqrt(PRIOR_BOX_MIN_SIZE[ms_idx] * PRIOR_BOX_MAX_SIZE[ms_idx]) * 0.5f;
                 FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, out_index + 8, output);
+                //printf("4: %d %d %d %f\n", out_index, w, h, output[out_index]);
             }
         #endif
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+    if(h==0 && w==0) {
+        printf("---AFTER:\n");
+        for(uint i=0; i<96;++i) {
+            printf("i=%d: %f\n", i, output[i]);
+        }
     }
 
     #ifdef PRIOR_BOX_CLIP
@@ -219,4 +236,6 @@ KERNEL(prior_box_ref)
             }
         }
     #endif
+
+//    printf("%d %d %d %f\n", out_index, w, h, output[out_index]);
 }
