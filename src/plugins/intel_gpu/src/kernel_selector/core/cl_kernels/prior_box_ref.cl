@@ -37,16 +37,13 @@ inline void FUNC(calculate_data)(OUTPUT_TYPE center_x,
         dst_data[idx++] = (center_x + box_width) * PRIOR_BOX_IWI;
         dst_data[idx++] = (center_y + box_height) * PRIOR_BOX_IHI;
 
-//        #ifdef PRIOR_BOX_IS_CLUSTERED
-//            for(uint i = 0; i < 4; ++i) {
-//                dst_data[idx + i] *= 0.5;
-//            }
-//        #endif
+        #ifdef PRIOR_BOX_IS_CLUSTERED
+            for(uint i = 0; i < 4; ++i) {
+                dst_data[idx + i] *= 0.5;
+            }
+        #endif
 
         *output_index = idx;
-//        printf("%d %f %f %f %f\n",
-//               *output_index,
-//               dst_data[idx], dst_data[idx + 1], dst_data[idx + 2], dst_data[idx + 3]);
     }
 };
 
@@ -58,20 +55,6 @@ KERNEL(prior_box_ref)
     #ifdef PRIOR_BOX_CLIP
         const uint start_out_index = out_index;
     #endif
-/*
-    if (w==0 && h==0 && PRIOR_BOX_ASPECT_RATIO_SIZE!=0) {
-        for (uint k = 0; k < PRIOR_BOX_ASPECT_RATIO_SIZE; ++k) {
-            OUTPUT_TYPE ar = PRIOR_BOX_ASPECT_RATIO[k];
-            printf("ar[%d]=%f", k, ar);
-            if (fabs(ar - 1.) < 1e-6) {
-                printf(", skipped\n");
-                continue;
-            } else {
-                printf("\n");
-            }
-        }
-    }
-*/
     OUTPUT_TYPE center_x, center_y;
     #ifdef PRIOR_BOX_STEP
         center_x = (PRIOR_BOX_OFFSET + w) * PRIOR_BOX_STEP;
@@ -163,8 +146,7 @@ KERNEL(prior_box_ref)
         #ifdef PRIOR_BOX_MIN_MAX_ASPECT_RATIO_ORDER
             if (PRIOR_BOX_MAX_SIZE_SIZE > ms_idx) {
                 box_width = box_height = sqrt(PRIOR_BOX_MIN_SIZE[ms_idx] * PRIOR_BOX_MAX_SIZE[ms_idx]) * 0.5f;
-                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index/* + 4*/, output);
-                //printf("1: %d %d %d %f\n", out_index, w, h, output[out_index]);
+                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
 
             }
 
@@ -179,8 +161,7 @@ KERNEL(prior_box_ref)
                     ar = sqrt(ar);
                     box_width = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f * ar;
                     box_height = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f / ar;
-                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index/* + 8*/, output);
-                    //printf("2: %d %d %d %f\n", out_index, w, h, output[out_index]);
+                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
                 }
             }
         #else
@@ -195,29 +176,18 @@ KERNEL(prior_box_ref)
                     ar = sqrt(ar);
                     box_width = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f * ar;
                     box_height = PRIOR_BOX_MIN_SIZE[s_idx] * 0.5f / ar;
-                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index/* + 4*/, output);
-                    //printf("3: %d %d %d %f\n", out_index, w, h, output[out_index]);
+                    FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
                 }
             }
 
             if (PRIOR_BOX_MAX_SIZE_SIZE > ms_idx) {
                 box_width = box_height = sqrt(PRIOR_BOX_MIN_SIZE[ms_idx] * PRIOR_BOX_MAX_SIZE[ms_idx]) * 0.5f;
-                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index/* + 8*/, output);
-                //printf("4: %d %d %d %f\n", out_index, w, h, output[out_index]);
+                FUNC_CALL(calculate_data)(center_x, center_y, box_width, box_height, false, &out_index, output);
             }
         #endif
     }
 
-//    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
-//    if(h==0 && w==0) {
-//        printf("---AFTER:\n");
-//        for(uint i=0; i<96;++i) {
-//            printf("i=%d: %f\n", i, output[i]);
-//        }
-//    }
-
     #ifdef PRIOR_BOX_CLIP
-        //for (uint i = 0; i < WIDTH * HEIGHT * PRIOR_BOX_NUM_PRIORS_4; ++i) {
         for (uint i = start_out_index; i < out_index; ++i) {
             output[i] = (min)((max)(output[i], 0.0f), 1.0f);
         }
@@ -233,7 +203,6 @@ KERNEL(prior_box_ref)
     #if PRIOR_BOX_VARIANCE_SIZE == 1
         for (uint i = 0; i < channel_size; ++i) {
             output[i + channel_size] = PRIOR_BOX_VARIANCE[0];
-            //printf("set variance output[%d+%d]=%f\n", i, channel_size, output[i + channel_size]);
         }
     #else
         for (uint i = out_index / var_loop_count; i < (out_index + PRIOR_BOX_NUM_PRIORS_4) / var_loop_count; ++i) {
@@ -242,6 +211,4 @@ KERNEL(prior_box_ref)
             }
         }
     #endif
-
-//    printf("%d %d %d %f\n", out_index, w, h, output[out_index]);
 }
