@@ -113,11 +113,6 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    /// \return Turns off constant folding.
-    bool constant_fold(OutputVector& output_values, const OutputVector& inputs_values) override {
-        return false;
-    }
-
     static int64_t number_of_priors(const Attributes& attrs);
 
     static std::vector<float> normalized_aspect_ratio(const std::vector<float>& aspect_ratio, bool flip);
