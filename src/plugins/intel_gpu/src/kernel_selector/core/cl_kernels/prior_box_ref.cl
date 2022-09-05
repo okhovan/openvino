@@ -218,7 +218,7 @@ KERNEL(prior_box_ref)
 
     #ifdef PRIOR_BOX_CLIP
         //for (uint i = 0; i < WIDTH * HEIGHT * PRIOR_BOX_NUM_PRIORS_4; ++i) {
-        for (uint i = start_out_index; i <= out_index; ++i) {
+        for (uint i = start_out_index; i < out_index; ++i) {
             output[i] = (min)((max)(output[i], 0.0f), 1.0f);
         }
     #endif
