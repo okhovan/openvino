@@ -13,13 +13,13 @@
 namespace ov {
 namespace intel_gpu {
 
-static cldnn::sort_result_type GetSortResultType(const ngraph::op::v9::MulticlassNms::SortResultType sort_result_type) {
+static cldnn::sort_result_type GetSortResultType(const ngraph::op::util::MulticlassNmsBase::SortResultType sort_result_type) {
     switch (sort_result_type) {
-        case ngraph::op::v9::MulticlassNms::SortResultType::CLASSID:
+        case ngraph::op::util::MulticlassNmsBase::SortResultType::CLASSID:
             return cldnn::sort_result_type::classid;
-        case ngraph::op::v9::MulticlassNms::SortResultType::SCORE:
+        case ngraph::op::util::MulticlassNmsBase::SortResultType::SCORE:
             return cldnn::sort_result_type::score;
-        case ngraph::op::v9::MulticlassNms::SortResultType::NONE:
+        case ngraph::op::util::MulticlassNmsBase::SortResultType::NONE:
             return cldnn::sort_result_type::none;
         default: IE_THROW() << "Unsupported SortResultType value: " << static_cast<int>(sort_result_type);
     }
@@ -69,8 +69,8 @@ static void CreateMulticlassNmsIEInternalOp(Program& p, const std::shared_ptr<ng
     p.add_primitive(*op, mutable_prim_w2);
     inputs.push_back(mutable_id_w2);
 
-    constexpr auto expectedPrimInputCount = 3 + 2;  // 3 operation inputs plus 2 additional outputs
-    if (inputs.size() != expectedPrimInputCount) {
+    constexpr auto expected_inputs_count = 3 + 2;  // 3 operation inputs plus 2 additional outputs
+    if (inputs.size() != expected_inputs_count) {
         IE_THROW() << "multiclass_nms primitive requires 5 inputs";
     }
 

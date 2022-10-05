@@ -163,7 +163,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ngraph::pass::ConvertNMS9ToNMSIEInternal>();
         manager.register_pass<ngraph::pass::ConvertGather0D>();
         manager.register_pass<ngraph::pass::ConvertPriorBox8To0, false>();
-
         manager.register_pass<ngraph::pass::ConvertMulticlassNmsToMulticlassNmsIE>();
 
         precisions_array convert_precision_list {

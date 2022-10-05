@@ -16,14 +16,10 @@ primitive_type_id multiclass_nms::type_id() {
 }
 
 layout multiclass_nms_inst::calc_output_layout(
-    const multiclass_nms_node& node, kernel_impl_params const& impl_param) {
-    auto input_layout = impl_param.get_input_layout();
-    auto desc = impl_param.typed_desc<multiclass_nms>();
+    const multiclass_nms_node& node, const kernel_impl_params& impl_param) {
+    const auto input_layout = impl_param.get_input_layout();
+    const auto desc = impl_param.typed_desc<multiclass_nms>();
 
-    // FIXME opoluektov
-    // TODO правильно рассчитать размеры, исходя из
-
-    // lexa: looks ok (for shared == true case (seems to be always true, since shared = scores_rank==3) from shape_infer() )
     const auto num_batches = node.has_roisnum() ? node.roisnum().get_output_layout().batch() : node.scores().get_output_layout().batch();
     auto num_classes = node.has_roisnum() ? node.boxes().get_output_layout().batch() : node.scores().get_output_layout().feature();
     const auto num_boxes = node.boxes().get_output_layout().feature();
@@ -45,12 +41,12 @@ layout multiclass_nms_inst::calc_output_layout(
 
     const auto dim = max_output_boxes_per_batch * num_batches;
 
-    return layout(input_layout.data_type, input_layout.format, {dim, 6, 1, 1});
+    return layout{input_layout.data_type, input_layout.format, {dim, 6, 1, 1}};
 }
 
 std::string multiclass_nms_inst::to_string(
     const multiclass_nms_node& node) {
-    auto desc = node.get_primitive();
+    const auto desc = node.get_primitive();
 
     std::stringstream primitive_description;
 

@@ -13,7 +13,7 @@ namespace kernel_selector {
 
 ParamsKey MulticlassNmsKernelRef::GetSupportedKey() const {
     ParamsKey k;
-    // TODO types/layouts
+
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT32);
@@ -55,7 +55,7 @@ MulticlassNmsKernelRef::DispatchData SetDefault(const multiclass_nms_params& par
     } else {
         dispatch_data.gws = {1, 1, 1};
     }
-    dispatch_data.lws = {1, 1, 1}; /*GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo);*/
+    dispatch_data.lws = GetOptimalLocalWorkGroupSizes(dispatch_data.gws, params.engineInfo);
 
     return dispatch_data;
 }
@@ -96,8 +96,6 @@ JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params
     jit.AddConstants({
         MakeJitConstant("SORT_RESULT_TYPE", static_cast<int>(params.sort_result_type)),
         MakeJitConstant("SORT_RESULT_ACROSS_BATCH", params.sort_result_across_batch),
-        MakeJitConstant("OUTPUT_INDICES_TYPE",
-                        params.indices_output_type == Datatype::INT32 ? "int" : "long"),
         MakeJitConstant("IOU_THRESHOLD", params.iou_threshold),
         MakeJitConstant("SCORE_THRESHOLD", params.score_threshold),
         MakeJitConstant("NMS_TOP_K", params.nms_top_k),
@@ -113,6 +111,8 @@ JitConstants MulticlassNmsKernelRef::GetJitConstants(const multiclass_nms_params
         MakeJitConstant("MAX_OUTPUT_BOXES_PER_BATCH", max_output_boxes_per_batch),
     });
 
+    jit.Merge(MakeTypeJitConstants(params.indices_output_type, "OUTPUT_INDICES"));
+
     if (params.has_roisnum) {
         jit.AddConstant(MakeJitConstant("HAS_ROISNUM", 1));
     }
@@ -125,12 +125,10 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params, const o
         return {};
     }
 
-    constexpr size_t kKernelsNum = 3;  // FIXME opoluektov
+    constexpr size_t kKernelsNum = 3;
     KernelData kd = KernelData::Default<multiclass_nms_params>(params, kKernelsNum);
     const auto& op_params = static_cast<const multiclass_nms_params&>(params);
 
-
-    // FIXME opoluektov: copy-paste
     const auto num_batches = op_params.has_roisnum ? op_params.inputs[2].Batch().v : op_params.inputs[0].Batch().v;
     const auto num_classes = op_params.has_roisnum ? op_params.inputs[1].Batch().v : op_params.inputs[1].Feature().v;
     const auto num_boxes = op_params.inputs[0].Feature().v;
@@ -138,7 +136,6 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params, const o
     // buffer for BoxInfos
     kd.internalBufferDataType = Datatype::F32;
     kd.internalBufferSizes.resize(1);
-    // FIXME opoluektov more precice math plz
     const auto box_size = (4 + 1) * sizeof(double) + 3 * sizeof(long); // 5: coordinates + score; 3: class_idx, batch_idx, index
     const auto total_boxes = num_batches * num_classes * num_boxes;
     kd.internalBufferSizes[0] = box_size * total_boxes;
@@ -162,5 +159,4 @@ KernelsData MulticlassNmsKernelRef::GetKernelsData(const Params& params, const o
 
     return {kd};
 }
-
 }  // namespace kernel_selector

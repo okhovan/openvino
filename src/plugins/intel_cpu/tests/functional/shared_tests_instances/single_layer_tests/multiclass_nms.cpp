@@ -13,7 +13,7 @@ using namespace InferenceEngine;
 using namespace ngraph;
 
 /* input format #1 with 2 inputs: bboxes N, M, 4, scores N, C, M */
-const std::vector<std::vector<ov::Shape>> inStaticShapeParams1 = {
+const std::vector<std::vector<ov::Shape>> shapes2Inputs = {
     {{3, 100, 4}, {3,   1, 100}},
     {{1, 10,  4}, {1, 100, 10 }}
 };
@@ -32,7 +32,7 @@ const std::vector<std::vector<ov::test::InputShape>> inDynamicShapeParams1 = {
 };
 
 /* input format #2 with 3 inputs: bboxes C, M, 4, scores C, M, roisnum N */
-const std::vector<std::vector<ov::Shape>> inStaticShapeParams2 = {
+const std::vector<std::vector<ov::Shape>> shapes3Inputs = {
     {{1, 10, 4}, {1, 10}, {1}},
     {{1, 10, 4}, {1, 10}, {10}},
     {{2, 100, 4}, {2, 100}, {1}},
@@ -89,7 +89,7 @@ const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};
 
 const auto nmsParamsStatic_smoke1 = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams1)),
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
     ::testing::Combine(::testing::Values(ov::element::f32),
                        ::testing::Values(ov::element::i32),
                        ::testing::Values(ov::element::i32),
@@ -122,7 +122,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_static1, MulticlassNmsLaye
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_dynamic1, MulticlassNmsLayerTest, nmsParamsDynamic_smoke1, MulticlassNmsLayerTest::getTestCaseName);
 
 const auto nmsParamsStatic_smoke2 = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams2)),
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes3Inputs)),
     ::testing::Combine(::testing::Values(ov::element::f32),
                        ::testing::Values(ov::element::i32),
                        ::testing::Values(ov::element::i32),

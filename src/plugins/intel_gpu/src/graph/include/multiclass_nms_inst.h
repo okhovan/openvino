@@ -62,9 +62,7 @@ class typed_primitive_inst<multiclass_nms> : public typed_primitive_inst_base<mu
     using parent = typed_primitive_inst_base<multiclass_nms>;
 
 public:
-//    template<typename ShapeType>
-//    static std::vector<layout> calc_output_layouts(const multiclass_nms_node& node, const kernel_impl_params& impl_param);
-    static layout calc_output_layout(multiclass_nms_node const& node, kernel_impl_params const& impl_param);
+    static layout calc_output_layout(const multiclass_nms_node& node, const kernel_impl_params& impl_param);
     static std::string to_string(const multiclass_nms_node& node);
 
     typed_primitive_inst(network& network, const multiclass_nms_node& node) : parent(network, node) {}
@@ -73,7 +71,6 @@ public:
         return dep_memory_ptr(node.get_dependencies().size() - 1);
     }
     memory::ptr output_num_memory() const {
-        // FIXME opoluektov: harmonize impl with typed_program_node<multiclass_nms>
         return dep_memory_ptr(node.get_dependencies().size() - 2);
     }
 };

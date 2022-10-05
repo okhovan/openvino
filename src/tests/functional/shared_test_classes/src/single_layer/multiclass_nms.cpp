@@ -89,7 +89,6 @@ void MulticlassNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& t
         } else if (i == 0) { // bboxes
             tensor = ov::test::utils::create_and_fill_tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
         } else { // roisnum
-            //std::srand(1); // 576/192
             /* sum of rois is no larger than num_bboxes. */
             ASSERT_TRUE(targetInputStaticShapes[i].size() == 1) << "Expected shape size 1 for input roisnum, got: " << targetInputStaticShapes[i];
 
@@ -113,13 +112,6 @@ void MulticlassNmsLayerTest::generate_inputs(const std::vector<ngraph::Shape>& t
                 return results;
             };
             auto roisnum = _generate_roisnum(targetInputStaticShapes[i][0], targetInputStaticShapes[0][1]/*num_bboxes*/);
-/*
-            if (targetInputStaticShapes[i][0] == 10) {
-                //roisnum = {0, 0, 10, 10, 10, 30, 0, 10, 20, 10}; // fail
-                roisnum = {0, 0, 1, 1, 1, 3, 0, 1, 2, 1}; // fail
-                //roisnum = {2, 1, 0, 2, 0, 1, 0, 1, 2, 1}; // pass
-            }
-*/
 
             tensor = ov::Tensor(funcInput.get_element_type(), targetInputStaticShapes[i]);
             if (tensor.get_element_type() == ov::element::i32) {
@@ -159,7 +151,7 @@ void MulticlassNmsLayerTest::GetOutputParams(size_t& numBatches, size_t& maxOutp
 
     auto realClasses = numClasses;
     if (m_attrs.background_class >= 0 && m_attrs.background_class < numClasses) {
-        realClasses = realClasses - 1;
+       realClasses = realClasses - 1;
     }
 
     size_t maxOutputBoxesPerClass = 0;

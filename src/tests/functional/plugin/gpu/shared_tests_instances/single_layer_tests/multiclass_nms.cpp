@@ -13,13 +13,13 @@ using namespace InferenceEngine;
 using namespace ngraph;
 
 /* input format #1 with 2 inputs: bboxes N, M, 4, scores N, C, M */
-const std::vector<std::vector<ov::Shape>> inStaticShapeParams1 = {
+const std::vector<std::vector<ov::Shape>> shapes2Inputs = {
     {{3, 100, 4}, {3,   1, 100}},
     {{1, 10,  4}, {1, 100, 10 }}
 };
 
 /* input format #2 with 3 inputs: bboxes C, M, 4, scores C, M, roisnum N */
-const std::vector<std::vector<ov::Shape>> inStaticShapeParams2 = {
+const std::vector<std::vector<ov::Shape>> shapes3Inputs = {
     {{1, 10, 4}, {1, 10}, {1}},
     {{1, 10, 4}, {1, 10}, {10}},
     {{2, 100, 4}, {2, 100}, {1}},
@@ -31,7 +31,7 @@ const std::vector<float> iouThreshold = {0.7f};
 const std::vector<float> scoreThreshold = {0.7f};
 const std::vector<int32_t> backgroundClass = {-1, 1};
 const std::vector<int32_t> keepTopK = {-1, 30};
-const std::vector<element::Type> outType = {element::i32/*, element::i64*/};
+const std::vector<element::Type> outType = {element::i32};
 
 const std::vector<ov::op::util::MulticlassNmsBase::SortResultType> sortResultType = {
     ov::op::util::MulticlassNmsBase::SortResultType::SCORE,
@@ -41,8 +41,8 @@ const std::vector<bool> sortResDesc = {true, false};
 const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};
 
-const auto params_v9_2inputs = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams1)),
+const auto params_v9_2Inputs = ::testing::Combine(
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
     ::testing::Combine(::testing::Values(ov::element::f32),
                        ::testing::Values(ov::element::i32),
                        ::testing::Values(ov::element::i32),
@@ -59,11 +59,11 @@ const auto params_v9_2inputs = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v9_2inputs,
                          MulticlassNmsLayerTest,
-                         params_v9_2inputs,
+                         params_v9_2Inputs,
                          MulticlassNmsLayerTest::getTestCaseName);
 
-const auto params_v9_3inputs = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams2)),
+const auto params_v9_3Inputs = ::testing::Combine(
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes3Inputs)),
     ::testing::Combine(::testing::Values(ov::element::f32),
                        ::testing::Values(ov::element::i32),
                        ::testing::Values(ov::element::i32),
@@ -79,11 +79,11 @@ const auto params_v9_3inputs = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v9_3inputs,
                          MulticlassNmsLayerTest,
-                         params_v9_3inputs,
+                         params_v9_3Inputs,
                          MulticlassNmsLayerTest::getTestCaseName);
 
 const auto params_v8 = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inStaticShapeParams1)),
+    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
     ::testing::Combine(::testing::Values(ov::element::f32),
                        ::testing::Values(ov::element::i32),
                        ::testing::Values(ov::element::i32),
