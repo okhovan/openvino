@@ -18,7 +18,6 @@ std::vector<T> getValues(const std::vector<float>& values) {
     std::vector<T> result(values.begin(), values.end());
     return result;
 }
-/*
 
 template <typename T>
 float getError();
@@ -27,12 +26,11 @@ template <>
 float getError<float>() {
     return 0.001;
 }
-*/
 
-//template <>
-//float getError<half_t>() {
-//    return 0.2;
-//}
+template <>
+float getError<half_t>() {
+    return 0.2;
+}
 
 };  // namespace
 
@@ -40,7 +38,6 @@ template <typename T, typename T_IND>
 struct MulticlassNmsParams {
     cldnn::sort_result_type sort_result_type;
     bool sort_result_across_batch;
-    cldnn::data_types output_type;
     float iou_threshold;
     float score_threshold;
     int nms_top_k;
@@ -114,7 +111,6 @@ public:
             if (input_roisnum)
                 set_values(input_roisnum, param.roisnum);
 
-            // calculate output static dim {
             auto real_num_classes = param.num_classes;
             if (param.background_class >= 0 && static_cast<uint>(param.background_class) < param.num_classes) {
                 real_num_classes = std::max(1ul, param.num_classes - 1);
@@ -130,7 +126,6 @@ public:
                 max_output_boxes_per_batch = std::min((int)max_output_boxes_per_batch, param.keep_top_k);
 
             const auto dim = max_output_boxes_per_batch * param.num_batches;
-            // } end calculate
 
             const layout output_selected_indices_layout{index_data_type, target_format, tensor{batch(dim), feature(1)}};
             auto output_selected_indices = engine.allocate_memory(output_selected_indices_layout);
@@ -163,7 +158,7 @@ public:
                 "output_selected_num",
                 param.sort_result_type,
                 param.sort_result_across_batch,
-                param.output_type,
+                index_data_type,
                 param.iou_threshold,
                 param.score_threshold,
                 param.nms_top_k,
@@ -218,13 +213,13 @@ public:
             }
 
             for (size_t i = 0; i < dim; ++i) {
-                std::cout << "\n" << output_selected_indices_ptr[i] << "\n";
+                //std::cout << "\n" << output_selected_indices_ptr[i] << "\n";
                 EXPECT_EQ(param.expected_selected_indices[i], output_selected_indices_ptr[i]) << "i=" << i;
 
                 for (size_t j = 0; j < 6; ++j) {
                     const auto idx = i * 6 + j;
-                    std::cout << output_boxes_ptr[idx] << " ";
-                    EXPECT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], 0.0001/*getError<T>()*/)
+                    //std::cout << output_boxes_ptr[idx] << " ";
+                    EXPECT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
                         << "i=" << i << ", j=" << j;
                 }
             }
@@ -232,9 +227,19 @@ public:
     }
 };
 
-using multiclass_nms_test_f32 = multiclass_nms_test<float, int32_t>;
+using multiclass_nms_test_f32_i32 = multiclass_nms_test<float, int32_t>;
+using multiclass_nms_test_f32_i64 = multiclass_nms_test<float, int64_t>;
+using multiclass_nms_test_f16_i32 = multiclass_nms_test<half_t, int32_t>;
 
-TEST_P(multiclass_nms_test_f32, basic) {
+TEST_P(multiclass_nms_test_f32_i32, basic) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+TEST_P(multiclass_nms_test_f32_i64, basic) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+
+TEST_P(multiclass_nms_test_f16_i32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
@@ -243,7 +248,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
     std::vector<MulticlassNmsParams<T, T_IND>> params = {
         {cldnn::sort_result_type::score, //0
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -269,7 +273,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::classid, //1
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -297,7 +300,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, // 2
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -337,7 +339,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::classid, //3
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -375,7 +376,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //4
          true,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -416,7 +416,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::classid, //5
          true,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -458,7 +457,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //6
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -500,7 +498,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //7
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -530,7 +527,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //8
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          2,
@@ -568,7 +564,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //9
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -599,7 +594,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //10
          false,
-         data_types::i32,
          0.2f,
          0.0f,
          3,
@@ -643,7 +637,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //11
          false,
-         data_types::i32,
          0.5f,
          0.95f,
          3,
@@ -688,7 +681,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::score, //12
          false,
-         data_types::i32,
          0.5f,
          2.0f,
          3,
@@ -720,7 +712,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::classid, //13
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -763,7 +754,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::classid,//14
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -798,7 +788,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::classid, //15
          false,
-         data_types::i32,
          0.5f,
          0.0f,
          3,
@@ -833,7 +822,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
 
         {cldnn::sort_result_type::classid, //16
          false,
-         data_types::i32,
          1.0f,
          0.0f,
          -1,
@@ -887,11 +875,78 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                             2, 4, 5, 6, 9, 11,
                             -1, -1, -1, -1, -1, -1},
          std::vector<T_IND>{6, 6}},  // multiclass_nms_by_keep_top_k
+
+//////////////////////////
+        {cldnn::sort_result_type::classid, //17
+         false,
+         1.0f,
+         0.0f,
+         -1,
+         -1,
+         -1,  // background class
+         true,
+         0.1f,
+         false,
+
+         2,
+         2,
+         6,
+
+         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                       0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                       0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
+         getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
+                       0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
+         std::vector<T_IND>{},
+
+         getValues<T>({
+             0.00,   0.95, 0.00,   10.00,  1.00, 11.00,
+             0.00,   0.90, 0.00,   0.00,   1.00, 1.00,
+             0.00,  0.30, 0.00, 100.00, 1.00, 101.00,
+             1.00,   0.95, 0.00,   0.00,   1.00, 1.00,
+             1.00,   0.80, 0.00,  10.00, 1.00, 11.00,
+             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+
+             1.0, 0.6, 0.0, -0.1, 1.0, 0.9,
+             1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
+             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
+             1.00,   0.95, 0.00,  0.00,  1.00, 1.00,
+             1.00,   0.80, 0.00,   10.00,  1.00, 11.00,
+             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+         }),
+         std::vector<T_IND>{3, 0, 5, 0, 3, 5,
+                            -1, -1, -1, -1, -1, -1,
+                            2, 4, 5, 6, 9, 11,
+                            -1, -1, -1, -1, -1, -1},
+         std::vector<T_IND>{6, 6}},  // blocked formats
+
+
     };
 
     return params;
 }
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
-                         multiclass_nms_test_f32,
+                         multiclass_nms_test_f32_i32,
                          ::testing::ValuesIn(getMulticlassNmsParams<float, int32_t>()));
+
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
+                         multiclass_nms_test_f32_i64,
+                         ::testing::ValuesIn(getMulticlassNmsParams<float, int64_t>()));
+
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
+                         multiclass_nms_test_f16_i32,
+                         ::testing::ValuesIn(getMulticlassNmsParams<half_t, int32_t>()));
