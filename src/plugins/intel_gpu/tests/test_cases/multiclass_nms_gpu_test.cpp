@@ -63,24 +63,13 @@ struct MulticlassNmsParams {
 template <typename T, typename T_IND>
 struct multiclass_nms_test : public ::testing::TestWithParam<MulticlassNmsParams<T, T_IND>> {
 public:
-    void test() {
+    void test(const std::vector<format::type>& formats = {format::bfyx}) {
         const MulticlassNmsParams<T, T_IND> param = testing::TestWithParam<MulticlassNmsParams<T, T_IND>>::GetParam();
         auto data_type = type_to_data_type<T>::value;
         auto index_data_type = type_to_data_type<T_IND>::value;
         constexpr auto plain_format = format::bfyx;
-        const std::vector<format::type> formats = {
-            format::bfyx,
-/*
-            format::b_fs_yx_fsv16,
-            format::b_fs_yx_fsv32,
-            format::bs_fs_yx_bsv16_fsv16,
-            format::bs_fs_yx_bsv32_fsv16,
-            format::bs_fs_yx_bsv32_fsv32
-*/
-        };
 
         for (const auto target_format : formats) {
-            std::cout << "FORMAT: " << fmt_to_str(target_format) << std::endl;
 
             auto& engine = get_test_engine();
 
@@ -184,7 +173,7 @@ public:
             const auto output_boxes = outputs.at("multiclass_nms").get_memory();
 
             const cldnn::mem_lock<T> output_boxes_ptr(output_boxes, get_test_stream());
-            ASSERT_EQ(output_boxes_ptr.size(), dim * 6);
+            ASSERT_EQ(output_boxes_ptr.size(), dim * 6) << "format=" << fmt_to_str(target_format);
 
             const auto get_plane_data = [&](const memory::ptr& mem, const data_types data_type, const layout& from_layout) {
                 if (from_layout.format == plain_format) {
@@ -202,14 +191,15 @@ public:
 
             const cldnn::mem_lock<T_IND> output_selected_indices_ptr(
                     get_plane_data(output_selected_indices, index_data_type, output_selected_indices_layout), get_test_stream());
-            ASSERT_EQ(output_selected_indices_ptr.size(), dim);
+            ASSERT_EQ(output_selected_indices_ptr.size(), dim) << "format=" << fmt_to_str(target_format);
 
             const cldnn::mem_lock<T_IND> output_selected_num_ptr(
                     get_plane_data(output_selected_num, index_data_type, output_selected_num_layout), get_test_stream());
-            ASSERT_EQ(output_selected_num_ptr.size(), param.num_batches);
+            ASSERT_EQ(output_selected_num_ptr.size(), param.num_batches) << "format=" << fmt_to_str(target_format);
 
             for (size_t i = 0; i < param.num_batches; ++i) {
-                EXPECT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i]) << "i=" << i;
+                EXPECT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
+                    << "format=" << fmt_to_str(target_format) << " i=" << i;
             }
 
             for (size_t i = 0; i < dim; ++i) {
@@ -220,7 +210,7 @@ public:
                     const auto idx = i * 6 + j;
                     //std::cout << output_boxes_ptr[idx] << " ";
                     EXPECT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
-                        << "i=" << i << ", j=" << j;
+                        << "format=" << fmt_to_str(target_format) << " i=" << i << ", j=" << j;
                 }
             }
         }
@@ -241,6 +231,20 @@ TEST_P(multiclass_nms_test_f32_i64, basic) {
 
 TEST_P(multiclass_nms_test_f16_i32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
+}
+
+using multiclass_nms_test_blocked = multiclass_nms_test<float, int32_t>;
+TEST_P(multiclass_nms_test_blocked, basic) {
+    const std::vector<format::type> formats = {
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
+    };
+
+    ASSERT_NO_FATAL_FAILURE(test(formats));
 }
 
 template <typename T, typename T_IND>
@@ -875,69 +879,87 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
                             2, 4, 5, 6, 9, 11,
                             -1, -1, -1, -1, -1, -1},
          std::vector<T_IND>{6, 6}},  // multiclass_nms_by_keep_top_k
+    };
 
-//////////////////////////
-        {cldnn::sort_result_type::classid, //17
+    return params;
+}
+
+template <typename T, typename T_IND>
+std::vector<MulticlassNmsParams<T, T_IND>> getParamsForBlockedLayout() {
+    MulticlassNmsParams<T, T_IND> param = {
+         cldnn::sort_result_type::score,
          false,
-         1.0f,
+         0.5f,
          0.0f,
+         3,
          -1,
          -1,
-         -1,  // background class
          true,
-         0.1f,
-         false,
+         1.0f,
+         true,
 
-         2,
-         2,
-         6,
+         34, //batches
+         2,  //classes
+         6,  //boxes
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
-                       0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
-                       0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
-         getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
-                       0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
-         std::vector<T_IND>{},
+         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
+                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
+         }),
+         getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
+         std::vector<T_IND>{1, 1},
 
          getValues<T>({
-             0.00,   0.95, 0.00,   10.00,  1.00, 11.00,
-             0.00,   0.90, 0.00,   0.00,   1.00, 1.00,
-             0.00,  0.30, 0.00, 100.00, 1.00, 101.00,
-             1.00,   0.95, 0.00,   0.00,   1.00, 1.00,
-             1.00,   0.80, 0.00,  10.00, 1.00, 11.00,
-             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
+             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
+             0.00,  0.90, 0.00, 0.00,  1.00, 1.00,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-
-             1.0, 0.6, 0.0, -0.1, 1.0, 0.9,
-             1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
-             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
-             1.00,   0.95, 0.00,  0.00,  1.00, 1.00,
-             1.00,   0.80, 0.00,   10.00,  1.00, 11.00,
-             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+             0.0, 0.75, 0.0, 0.1, 1.0, 1.1,
+             1.0, 0.75, 0.0, 0.1, 1.0, 1.1,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
          }),
-         std::vector<T_IND>{3, 0, 5, 0, 3, 5,
-                            -1, -1, -1, -1, -1, -1,
-                            2, 4, 5, 6, 9, 11,
-                            -1, -1, -1, -1, -1, -1},
-         std::vector<T_IND>{6, 6}},  // blocked formats
-
-
+         std::vector<T_IND>{1, 0, -1, -1, -1, -1,
+                            2, 3, -1, -1, -1, -1},
+         std::vector<T_IND>{2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}  // three_inputs_blocked
     };
 
-    return params;
+    const auto indices_size = param.num_batches * param.num_boxes;
+    const auto filled_indices = param.expected_selected_indices.size();
+    param.expected_selected_indices.resize(indices_size);
+    for (auto i = filled_indices; i < indices_size; ++i) {
+        param.expected_selected_indices[i] = -1;
+    }
+
+    const auto outputs_size = param.num_batches * param.num_classes * param.num_boxes * 6;
+    const auto filled_outputs = param.expected_selected_outputs.size();
+    param.expected_selected_outputs.resize(outputs_size);
+    for (auto i = filled_outputs; i < outputs_size; ++i) {
+        param.expected_selected_outputs[i] = -1.0;
+    }
+
+    return {param};
 }
+
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
                          multiclass_nms_test_f32_i32,
@@ -950,3 +972,7 @@ INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
                          multiclass_nms_test_f16_i32,
                          ::testing::ValuesIn(getMulticlassNmsParams<half_t, int32_t>()));
+
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_blocked,
+                         multiclass_nms_test_f32_i32,
+                         ::testing::ValuesIn(getParamsForBlockedLayout<float, int32_t>()));
