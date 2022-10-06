@@ -12,29 +12,26 @@ using namespace cldnn;
 using namespace ::tests;
 
 namespace {
-
-template <typename T>
+template<typename T>
 std::vector<T> getValues(const std::vector<float>& values) {
     std::vector<T> result(values.begin(), values.end());
     return result;
 }
 
-template <typename T>
+template<typename T>
 float getError();
 
-template <>
+template<>
 float getError<float>() {
     return 0.001;
 }
 
-template <>
+template<>
 float getError<half_t>() {
     return 0.2;
 }
 
-};  // namespace
-
-template <typename T, typename T_IND>
+template<typename T, typename T_IND>
 struct MulticlassNmsParams {
     cldnn::sort_result_type sort_result_type;
     bool sort_result_across_batch;
@@ -60,7 +57,7 @@ struct MulticlassNmsParams {
     std::vector<T_IND> expected_selected_num;
 };
 
-template <typename T, typename T_IND>
+template<typename T, typename T_IND>
 struct multiclass_nms_test : public ::testing::TestWithParam<MulticlassNmsParams<T, T_IND>> {
 public:
     void test(const std::vector<format::type>& formats = {format::bfyx}) {
@@ -74,31 +71,35 @@ public:
             auto& engine = get_test_engine();
 
             const auto input_boxes =
-                !param.has_roisnum
+                    !param.has_roisnum
                     ? engine.allocate_memory({data_type,
                                               plain_format,
-                                              tensor{batch(param.num_batches), feature(param.num_boxes), spatial(1, 4)}})
+                                              tensor{batch(param.num_batches), feature(param.num_boxes),
+                                                     spatial(1, 4)}})
                     : engine.allocate_memory({data_type,
                                               plain_format,
-                                              tensor{batch(param.num_classes), feature(param.num_boxes), spatial(1, 4)}});
+                                              tensor{batch(param.num_classes), feature(param.num_boxes),
+                                                     spatial(1, 4)}});
             set_values(input_boxes, param.boxes);
 
-            auto input_scores =
-                !param.has_roisnum
+            const auto input_scores =
+                    !param.has_roisnum
                     ? engine.allocate_memory(
-                          {data_type,
-                           plain_format,
-                           tensor{batch(param.num_batches), feature(param.num_classes), spatial(1, param.num_boxes)}})
+                            {data_type,
+                             plain_format,
+                             tensor{batch(param.num_batches), feature(param.num_classes),
+                                    spatial(1, param.num_boxes)}})
                     : engine.allocate_memory(
-                          {data_type, plain_format, tensor{batch(param.num_classes), feature(param.num_boxes)}});
+                            {data_type, plain_format, tensor{batch(param.num_classes), feature(param.num_boxes)}});
             set_values(input_scores, param.scores);
 
-            auto input_roisnum =
-                param.has_roisnum
+            const auto input_roisnum =
+                    param.has_roisnum
                     ? engine.allocate_memory({index_data_type, plain_format, tensor{batch(param.num_batches)}})
                     : nullptr;
-            if (input_roisnum)
+            if (input_roisnum) {
                 set_values(input_roisnum, param.roisnum);
+            }
 
             auto real_num_classes = param.num_classes;
             if (param.background_class >= 0 && static_cast<uint>(param.background_class) < param.num_classes) {
@@ -106,20 +107,22 @@ public:
             }
             int64_t max_output_boxes_per_class = 0;
             if (param.nms_top_k >= 0)
-                max_output_boxes_per_class = std::min((int)param.num_boxes, param.nms_top_k);
+                max_output_boxes_per_class = std::min((int) param.num_boxes, param.nms_top_k);
             else
                 max_output_boxes_per_class = param.num_boxes;
 
             auto max_output_boxes_per_batch = max_output_boxes_per_class * real_num_classes;
             if (param.keep_top_k >= 0)
-                max_output_boxes_per_batch = std::min((int)max_output_boxes_per_batch, param.keep_top_k);
+                max_output_boxes_per_batch = std::min((int) max_output_boxes_per_batch, param.keep_top_k);
 
             const auto dim = max_output_boxes_per_batch * param.num_batches;
 
-            const layout output_selected_indices_layout{index_data_type, target_format, tensor{batch(dim), feature(1)}};
-            auto output_selected_indices = engine.allocate_memory(output_selected_indices_layout);
-            const layout output_selected_num_layout{index_data_type, target_format, tensor{batch(param.num_batches)}};
-            auto output_selected_num = engine.allocate_memory(output_selected_num_layout);
+            const layout output_selected_indices_layout{index_data_type, target_format,
+                                                        tensor{batch(dim), feature(1)}};
+            const auto output_selected_indices = engine.allocate_memory(output_selected_indices_layout);
+            const layout output_selected_num_layout{index_data_type, target_format,
+                                                    tensor{batch(param.num_batches)}};
+            const auto output_selected_num = engine.allocate_memory(output_selected_num_layout);
 
             topology topology;
 
@@ -139,22 +142,22 @@ public:
             }
 
             const auto primitive = multiclass_nms{
-                "multiclass_nms_reordered",
-                "input_boxes_reordered",
-                "input_scores_reordered",
-                param.has_roisnum ? "input_roisnum_reordered" : "",
-                "output_selected_indices",
-                "output_selected_num",
-                param.sort_result_type,
-                param.sort_result_across_batch,
-                index_data_type,
-                param.iou_threshold,
-                param.score_threshold,
-                param.nms_top_k,
-                param.keep_top_k,
-                param.background_class,
-                param.normalized,
-                param.nms_eta,
+                    "multiclass_nms_reordered",
+                    "input_boxes_reordered",
+                    "input_scores_reordered",
+                    param.has_roisnum ? "input_roisnum_reordered" : "",
+                    "output_selected_indices",
+                    "output_selected_num",
+                    param.sort_result_type,
+                    param.sort_result_across_batch,
+                    index_data_type,
+                    param.iou_threshold,
+                    param.score_threshold,
+                    param.nms_top_k,
+                    param.keep_top_k,
+                    param.background_class,
+                    param.normalized,
+                    param.nms_eta,
             };
 
             topology.add(primitive);
@@ -165,17 +168,18 @@ public:
 
             network.set_input_data("input_boxes", input_boxes);
             network.set_input_data("input_scores", input_scores);
-            if (param.has_roisnum)
+            if (param.has_roisnum) {
                 network.set_input_data("input_roisnum", input_roisnum);
+            }
 
             const auto outputs = network.execute();
 
             const auto output_boxes = outputs.at("multiclass_nms").get_memory();
-
             const cldnn::mem_lock<T> output_boxes_ptr(output_boxes, get_test_stream());
             ASSERT_EQ(output_boxes_ptr.size(), dim * 6) << "format=" << fmt_to_str(target_format);
 
-            const auto get_plane_data = [&](const memory::ptr& mem, const data_types data_type, const layout& from_layout) {
+            const auto get_plane_data = [&](const memory::ptr& mem, const data_types data_type,
+                                            const layout& from_layout) {
                 if (from_layout.format == plain_format) {
                     return mem;
                 }
@@ -190,27 +194,27 @@ public:
             };
 
             const cldnn::mem_lock<T_IND> output_selected_indices_ptr(
-                    get_plane_data(output_selected_indices, index_data_type, output_selected_indices_layout), get_test_stream());
+                    get_plane_data(output_selected_indices, index_data_type, output_selected_indices_layout),
+                    get_test_stream());
             ASSERT_EQ(output_selected_indices_ptr.size(), dim) << "format=" << fmt_to_str(target_format);
 
             const cldnn::mem_lock<T_IND> output_selected_num_ptr(
-                    get_plane_data(output_selected_num, index_data_type, output_selected_num_layout), get_test_stream());
+                    get_plane_data(output_selected_num, index_data_type, output_selected_num_layout),
+                    get_test_stream());
             ASSERT_EQ(output_selected_num_ptr.size(), param.num_batches) << "format=" << fmt_to_str(target_format);
 
             for (size_t i = 0; i < param.num_batches; ++i) {
                 EXPECT_EQ(param.expected_selected_num[i], output_selected_num_ptr[i])
-                    << "format=" << fmt_to_str(target_format) << " i=" << i;
+                                    << "format=" << fmt_to_str(target_format) << " i=" << i;
             }
 
-            for (size_t i = 0; i < dim; ++i) {
-                //std::cout << "\n" << output_selected_indices_ptr[i] << "\n";
-                EXPECT_EQ(param.expected_selected_indices[i], output_selected_indices_ptr[i]) << "i=" << i;
+            for (size_t box = 0; box < dim; ++box) {
+                EXPECT_EQ(param.expected_selected_indices[box], output_selected_indices_ptr[box]) << "box=" << box;
 
                 for (size_t j = 0; j < 6; ++j) {
-                    const auto idx = i * 6 + j;
-                    //std::cout << output_boxes_ptr[idx] << " ";
+                    const auto idx = box * 6 + j;
                     EXPECT_NEAR(param.expected_selected_outputs[idx], output_boxes_ptr[idx], getError<T>())
-                        << "format=" << fmt_to_str(target_format) << " i=" << i << ", j=" << j;
+                                        << "format=" << fmt_to_str(target_format) << " box=" << box << ", j=" << j;
                 }
             }
         }
@@ -218,36 +222,31 @@ public:
 };
 
 using multiclass_nms_test_f32_i32 = multiclass_nms_test<float, int32_t>;
-using multiclass_nms_test_f32_i64 = multiclass_nms_test<float, int64_t>;
-using multiclass_nms_test_f16_i32 = multiclass_nms_test<half_t, int32_t>;
+using multiclass_nms_test_f16_i64 = multiclass_nms_test<half_t, int64_t>;
+using multiclass_nms_test_blocked = multiclass_nms_test<float, int32_t>;
 
 TEST_P(multiclass_nms_test_f32_i32, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-TEST_P(multiclass_nms_test_f32_i64, basic) {
+TEST_P(multiclass_nms_test_f16_i64, basic) {
     ASSERT_NO_FATAL_FAILURE(test());
 }
 
-TEST_P(multiclass_nms_test_f16_i32, basic) {
-    ASSERT_NO_FATAL_FAILURE(test());
-}
-
-using multiclass_nms_test_blocked = multiclass_nms_test<float, int32_t>;
 TEST_P(multiclass_nms_test_blocked, basic) {
     const std::vector<format::type> formats = {
-        format::bfyx,
-        format::b_fs_yx_fsv16,
-        format::b_fs_yx_fsv32,
-        format::bs_fs_yx_bsv16_fsv16,
-        format::bs_fs_yx_bsv32_fsv16,
-        format::bs_fs_yx_bsv32_fsv32
+            format::bfyx,
+            format::b_fs_yx_fsv16,
+            format::b_fs_yx_fsv32,
+            format::bs_fs_yx_bsv16_fsv16,
+            format::bs_fs_yx_bsv32_fsv16,
+            format::bs_fs_yx_bsv32_fsv32
     };
 
     ASSERT_NO_FATAL_FAILURE(test(formats));
 }
 
-template <typename T, typename T_IND>
+template<typename T, typename T_IND>
 std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
     std::vector<MulticlassNmsParams<T, T_IND>> params = {
         {cldnn::sort_result_type::score, //0
@@ -265,42 +264,28 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{},
-         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
-                       0.00, 0.90, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                       0.00, 0.90, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
                        -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{3, 0, 0, 3, -1, -1},
          std::vector<T_IND>{4}},
 
         {cldnn::sort_result_type::classid, //1
-         false,
-         0.5f,
-         0.0f,
-         3,
-         -1,
-         -1,
-         true,
-         1.0f,
-         false,
-
-         1,
-         2,
-         6,
-
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
-                       0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
-         getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
-         std::vector<T_IND>{},
-
-         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00,  1.00, 1.00,
-                       1.00, 0.95, 0.00, 0.00,  1.00, 1.00,  1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-                       -1.0,  -1.0,  -1.0,  -1.0,   -1.0,  -1.0,   -1.0,  -1.0,  -1.0,  -1.0,   -1.0,  -1.0}),
-
-         std::vector<T_IND>{3, 0, 0, 3, -1, -1},
-         std::vector<T_IND>{4}},
+          false, 0.5f, 0.0f, 3, -1, -1, true, 1.0f, false,
+          1, 2, 6,
+            getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
+                          0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
+            getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
+            std::vector<T_IND>{},
+            getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                          1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                          -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
+            std::vector<T_IND>{3, 0, 0, 3, -1, -1},
+            std::vector<T_IND>{4}},
 
         {cldnn::sort_result_type::score, // 2
          false,
@@ -313,33 +298,33 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          1.0f,
          true,
 
-         2, //batches
-         2, //classes
-         6, //boxes
+         2,
+         2,
+         6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0,
+                       1.1,
+                       0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0,
+                       101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{1, 1},
 
-         getValues<T>({
-             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
-             0.00,  0.90, 0.00, 0.00,  1.00, 1.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             0.0, 0.75, 0.0, 0.1, 1.0, 1.1,
-             1.0, 0.75, 0.0, 0.1, 1.0, 1.1,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-         }),
-         std::vector<T_IND>{1, 0, -1, -1, -1, -1,
-                            2, 3, -1, -1, -1, -1},
-         std::vector<T_IND>{2, 2}},  // three_inputs
+         getValues<T>({1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                       0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       0.0, 0.75, 0.0, 0.1, 1.0, 1.1,
+                       1.0, 0.75, 0.0, 0.1, 1.0, 1.1,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
+        std::vector<T_IND>{1, 0, -1, -1, -1, -1,
+                           2, 3, -1, -1, -1, -1},
+        std::vector<T_IND>{2, 2}},  // three_inputs
 
         {cldnn::sort_result_type::classid, //3
          false,
@@ -356,27 +341,27 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0,
+                       1.1,
+                       0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0,
+                       101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00,  0.95, 0.00,  10.00, 1.00, 11.00,
-             0.00,  0.90, 0.00,  0.00, 1.00, 1.00,
-             1.00,  0.95, 0.00, 0.00,  1.00, 1.00,
-             1.00,  0.80, 0.00,  10.00, 1.00, 11.00,
-             -1.0,   -1.0,  -1.0,   -1.0,   -1.0,  -1.0,   -1.0,   -1.0,  -1.0,   -1.0,  -1.0,  -1.0,
-             1.00, 0.5, 0, 10.1, 1.00, 11.1,
-             1.00,  0.3, 0.00,  100.0,  1.00, 101.00,
-             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
-             1.00,  0.80, 0.00, 10.00, 1.00, 11.00,
-             -1.0,   -1.0,  -1.0,   -1.0,   -1.0,  -1.0,   -1.0,   -1.0,  -1.0,   -1.0,  -1.0,  -1.0,
-         }),
-         std::vector<T_IND>{3, 0, 0, 3, -1, -1, 4, 5, 6, 9, -1, -1},
-         std::vector<T_IND>{4, 4}},
+        getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
+                      0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      1.00, 0.5, 0, 10.1, 1.00, 11.1,
+                      1.00, 0.3, 0.00, 100.0, 1.00, 101.00,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
+        std::vector<T_IND>{3, 0, 0, 3, -1, -1, 4, 5, 6, 9, -1, -1},
+        std::vector<T_IND>{4, 4}},
 
         {cldnn::sort_result_type::score, //4
          true,
@@ -393,30 +378,27 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
-         getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
-                       0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
-         std::vector<T_IND>{},
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                       0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
+        getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
+                      0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
+        std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00,  0.95, 0.00,  10.00, 1.00, 11.00,
-             1.00, 0.95, 0.00, 0.00,  1.00, 1.00,
-             1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
-             0.00,  0.90, 0.00,  0.00,  1.00, 1.00,
-             -1.0,   -1.0,  -1.0,   -1.0,   -1.0,  -1.0,
-             -1.0,  -1.0,  -1.0,  -1.0,   -1.0,  -1.0,
-             1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-             1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-             1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
-             1.0, 0.3, 0.0, 100.0, 1.0, 101.0,
-             -1.0,   -1.0,  -1.0,   -1.0,   -1.0,  -1.0,
-             -1.0,  -1.0,  -1.0,  -1.0,   -1.0,  -1.0,
-
-         }),
-         std::vector<T_IND>{3, 0, 6, 0, -1, -1, 3, 9, 4, 5, -1, -1},
-         std::vector<T_IND>{4, 4}},
+        getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
+                      1.0, 0.3, 0.0, 100.0, 1.0, 101.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
+        std::vector<T_IND>{3, 0, 6, 0, -1, -1, 3, 9, 4, 5, -1, -1},
+        std::vector<T_IND>{4, 4}},
 
         {cldnn::sort_result_type::classid, //5
          true,
@@ -433,29 +415,26 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                       0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00,  0.95, 0.00,  10.00, 1.00, 11.00,
-             0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-             1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
-             1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-             -1.0,   -1.0,  -1.0,   -1.0,  -1.0,  -1.0,
-             -1.0,  -1.0,  -1.0,  -1.0,  -1.0,  -1.0,
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
+                      0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
 
-             1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
-             1.0, 0.3, 0.0, 100.0, 1.0, 101.0,
-             1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
-             1.00,  0.80, 0.00,  10.00, 1.00, 11.00,
-             -1.0,   -1.0,  -1.0,   -1.0,  -1.0,  -1.0,
-             -1.0,  -1.0,  -1.0,  -1.0,  -1.0,  -1.0,
-
-         }),
+                      1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
+                      1.0, 0.3, 0.0, 100.0, 1.0, 101.0,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{3, 0, 0, 3, -1, -1, 4, 5, 6, 9, -1, -1},
          std::vector<T_IND>{4, 4}},
 
@@ -474,29 +453,13 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          1,
          6,
 
-         getValues<T>({1.0, 1.0,  0.0, 0.0,  0.0, 0.1,  1.0, 1.1,  0.0, 0.9,   1.0, -0.1,
+         getValues<T>({1.0, 1.0, 0.0, 0.0, 0.0, 0.1, 1.0, 1.1, 0.0, 0.9, 1.0, -0.1,
                        0.0, 10.0, 1.0, 11.0, 1.0, 10.1, 0.0, 11.1, 1.0, 101.0, 0.0, 100.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({0.00,
-                       0.95,
-                       0.00,
-                       10.00,
-                       1.00,
-                       11.00,
-                       0.00,
-                       0.90,
-                       1.00,
-                       1.00,
-                       0.00,
-                       0.00,
-                       0.00,
-                       0.75,
-                       0.00,
-                       0.10,
-                       1.00,
-                       1.10}),
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 1.00,
+                       1.00, 0.00, 0.00, 0.00, 0.75, 0.00, 0.10, 1.00, 1.10}),
          std::vector<T_IND>{3, 0, 1},
          std::vector<T_IND>{3}},  // multiclass_nms_flipped_coordinates
 
@@ -521,13 +484,11 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          getValues<T>({0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-             -1.0,   -1.0,  -1.0,   -1.0,  -1.0,  -1.0,
-             -1.0,  -1.0,  -1.0,  -1.0,  -1.0,  -1.0,
-         }),
-         std::vector<T_IND>{0, -1, -1},
-         std::vector<T_IND>{1}},  // multiclass_nms_identical_boxes
+         getValues<T>({0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
+        std::vector<T_IND>{0, -1, -1},
+        std::vector<T_IND>{1}},  // multiclass_nms_identical_boxes
 
         {cldnn::sort_result_type::score, //8
          false,
@@ -544,25 +505,11 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          1,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),
          std::vector<T_IND>{},
-
-         getValues<T>({
-             0.00,
-             0.95,
-             0.00,
-             10.00,
-             1.00,
-             11.00,
-             0.00,
-             0.90,
-             0.00,
-             0.00,
-             1.00,
-             1.00,
-         }),
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
          std::vector<T_IND>{3, 0},
          std::vector<T_IND>{2}},  // multiclass_nms_limit_output_size
 
@@ -585,14 +532,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          getValues<T>({0.9}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00,
-             0.90,
-             0.00,
-             0.00,
-             1.00,
-             1.00,
-         }),
+         getValues<T>({0.00, 0.90, 0.00, 0.00, 1.00, 1.00}),
          std::vector<T_IND>{0},
          std::vector<T_IND>{1}},  // multiclass_nms_single_box
 
@@ -611,33 +551,15 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          1,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00,
-             0.95,
-             0.00,
-             10.00,
-             1.00,
-             11.00,
-             0.00,
-             0.90,
-             0.00,
-             0.00,
-             1.00,
-             1.00,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-         }),
-         std::vector<T_IND>{3, 0, -1},
-         std::vector<T_IND>{2}},  // multiclass_nms_by_IOU
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00, 0.00, 0.90, 0.00,
+                       0.00, 1.00, 1.00, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
+        std::vector<T_IND>{3, 0, -1},
+        std::vector<T_IND>{2}},  // multiclass_nms_by_IOU
 
         {cldnn::sort_result_type::score, //11
          false,
@@ -654,32 +576,13 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          1,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.96, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00,
-             0.96,
-             0.00,
-             10.00,
-             1.00,
-             11.00,
-
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-             -1.0,
-         }),
+         getValues<T>({0.00, 0.96, 0.00, 10.00, 1.00, 11.00, -1.0, -1.0, -1.0,
+                       -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{3, -1, -1},
          std::vector<T_IND>{1}},  // multiclass_nms_by_IOU_and_scores
 
@@ -698,19 +601,17 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          1,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-        }),
+         getValues<T>({-1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{-1, -1, -1, -1, -1, -1},
          std::vector<T_IND>{0}},  // multiclass_nms_no_output
 
@@ -729,32 +630,30 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,
-                       0.0, 0.1,   1.0, 1.1,
+         getValues<T>({0.0, 0.0, 1.0, 1.0,
+                       0.0, 0.1, 1.0, 1.1,
                        0.0, -0.1, 1.0, 0.9,
-                       0.0, 10.0,  1.0, 11.0,
+                       0.0, 10.0, 1.0, 11.0,
                        0.0, 10.1, 1.0, 11.1,
                        0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,
-                       0.0, 0.1,   1.0, 1.1,
+                       0.0, 0.0, 1.0, 1.0,
+                       0.0, 0.1, 1.0, 1.1,
                        0.0, -0.1, 1.0, 0.9,
-                       0.0, 10.0,  1.0, 11.0,
+                       0.0, 10.0, 1.0, 11.0,
                        0.0, 10.1, 1.0, 11.1,
                        0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
-             1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
-             1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-         }),
-         std::vector<T_IND>{0, 3, -1, 6, 9, -1},
-         std::vector<T_IND>{2, 2}},  // multiclass_nms_by_background
+        getValues<T>({1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
+        std::vector<T_IND>{0, 3, -1, 6, 9, -1},
+        std::vector<T_IND>{2, 2}},  // multiclass_nms_by_background
 
         {cldnn::sort_result_type::classid,//14
          false,
@@ -771,24 +670,22 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                       0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
-             0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
-             1.00, 0.5, 0.00, 10.1, 1.00, 11.1,
-             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
-             1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-         }),
-         std::vector<T_IND>{3, 0, 0, 4, 6, 9},
-         std::vector<T_IND>{3, 3}},  // multiclass_nms_by_keep_top_k
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
+                       0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                       1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                       1.00, 0.5, 0.00, 10.1, 1.00, 11.1,
+                       1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                       1.00, 0.80, 0.00, 10.00, 1.00, 11.00}),
+        std::vector<T_IND>{3, 0, 0, 4, 6, 9},
+        std::vector<T_IND>{3, 3}},  // multiclass_nms_by_keep_top_k
 
         {cldnn::sort_result_type::classid, //15
          false,
@@ -805,24 +702,22 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                       0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
-             0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
-             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
-             1.00, 0.5, 0.00, 10.1, 1.00, 11.1,
-             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
-             1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-         }),
-         std::vector<T_IND>{3, 0, 0, 4, 6, 9},
-         std::vector<T_IND>{3, 3}},  // multiclass_nms_by_keep_top_k
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
+                       0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                       1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                       1.00, 0.5, 0.00, 10.1, 1.00, 11.1,
+                       1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                       1.00, 0.80, 0.00, 10.00, 1.00, 11.00}),
+        std::vector<T_IND>{3, 0, 0, 4, 6, 9},
+        std::vector<T_IND>{3, 3}},  // multiclass_nms_by_keep_top_k
 
         {cldnn::sort_result_type::classid, //16
          false,
@@ -839,41 +734,38 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          2,
          6,
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+         getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,  1.0, 1.1,  0.0, -0.1,  1.0, 0.9,
+                       0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9,
                        0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
          getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
                        0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
          std::vector<T_IND>{},
 
-         getValues<T>({
-             0.00,   0.95, 0.00,   10.00,  1.00, 11.00,
-             0.00,   0.90, 0.00,   0.00,   1.00, 1.00,
-             0.00,  0.30, 0.00, 100.00, 1.00, 101.00,
-             1.00,   0.95, 0.00,   0.00,   1.00, 1.00,
-             1.00,   0.80, 0.00,  10.00, 1.00, 11.00,
-             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-
-             1.0, 0.6, 0.0, -0.1, 1.0, 0.9,
-             1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
-             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
-             1.00,   0.95, 0.00,  0.00,  1.00, 1.00,
-             1.00,   0.80, 0.00,   10.00,  1.00, 11.00,
-             1.00,   0.30, 0.00,   100.00, 1.00, 101.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-         }),
+         getValues<T>({0.00, 0.95, 0.00, 10.00, 1.00, 11.00,
+                      0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                      0.00, 0.30, 0.00, 100.00, 1.00, 101.00,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      1.00, 0.30, 0.00, 100.00, 1.00, 101.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      1.0, 0.6, 0.0, -0.1, 1.0, 0.9,
+                      1.0, 0.5, 0.0, 10.1, 1.0, 11.1,
+                      1.00, 0.30, 0.00, 100.00, 1.00, 101.00,
+                      1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                      1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+                      1.00, 0.30, 0.00, 100.00, 1.00, 101.00,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                      -1.0, -1.0, -1.0, -1.0, -1.0, -1.0}),
          std::vector<T_IND>{3, 0, 5, 0, 3, 5,
                             -1, -1, -1, -1, -1, -1,
                             2, 4, 5, 6, 9, 11,
@@ -884,63 +776,63 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
     return params;
 }
 
-template <typename T, typename T_IND>
+template<typename T, typename T_IND>
 std::vector<MulticlassNmsParams<T, T_IND>> getParamsForBlockedLayout() {
     MulticlassNmsParams<T, T_IND> param = {
-         cldnn::sort_result_type::score,
-         false,
-         0.5f,
-         0.0f,
-         3,
-         -1,
-         -1,
-         true,
-         1.0f,
-         true,
+        cldnn::sort_result_type::score,
+        false,
+        0.5f,
+        0.0f,
+        3,
+        -1,
+        -1,
+        true,
+        1.0f,
+        true,
 
-         34, //batches
-         2,  //classes
-         6,  //boxes
+        34, //batches
+        2,  //classes
+        6,  //boxes
 
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-         }),
-         getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
-         std::vector<T_IND>{1, 1},
+        getValues<T>({0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                      0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                      0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                      0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1,
+                      0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0, 0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                      0.0, 0.0, 1.0, 1.0, 0.0, 0.1, 1.0, 1.1, 0.0, -0.1, 1.0, 0.9, 0.0, 10.0, 1.0, 11.0,
+                     }),
+        getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
+        std::vector<T_IND>{1, 1},
 
-         getValues<T>({
-             1.00,  0.95, 0.00,  0.00, 1.00, 1.00,
-             0.00,  0.90, 0.00, 0.00,  1.00, 1.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             0.0, 0.75, 0.0, 0.1, 1.0, 1.1,
-             1.0, 0.75, 0.0, 0.1, 1.0, 1.1,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-         }),
-         std::vector<T_IND>{1, 0, -1, -1, -1, -1,
-                            2, 3, -1, -1, -1, -1},
-         std::vector<T_IND>{2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}  // three_inputs_blocked
+        getValues<T>({
+                             1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
+                             0.00, 0.90, 0.00, 0.00, 1.00, 1.00,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                             0.0, 0.75, 0.0, 0.1, 1.0, 1.1,
+                             1.0, 0.75, 0.0, 0.1, 1.0, 1.1,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
+                     }),
+        std::vector<T_IND>{1, 0, -1, -1, -1, -1,
+                           2, 3, -1, -1, -1, -1},
+        std::vector<T_IND>{2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                           0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}  // three_inputs_blocked
     };
 
     const auto indices_size = param.num_batches * param.num_boxes;
@@ -960,19 +852,16 @@ std::vector<MulticlassNmsParams<T, T_IND>> getParamsForBlockedLayout() {
     return {param};
 }
 
+INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
+                     multiclass_nms_test_f32_i32,
+                     ::testing::ValuesIn(getMulticlassNmsParams<float, int32_t>()));
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
-                         multiclass_nms_test_f32_i32,
-                         ::testing::ValuesIn(getMulticlassNmsParams<float, int32_t>()));
-
-INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
-                         multiclass_nms_test_f32_i64,
-                         ::testing::ValuesIn(getMulticlassNmsParams<float, int64_t>()));
-
-INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test,
-                         multiclass_nms_test_f16_i32,
-                         ::testing::ValuesIn(getMulticlassNmsParams<half_t, int32_t>()));
+                     multiclass_nms_test_f16_i64,
+                     ::testing::ValuesIn(getMulticlassNmsParams<half_t, int64_t>()));
 
 INSTANTIATE_TEST_SUITE_P(multiclass_nms_gpu_test_blocked,
-                         multiclass_nms_test_f32_i32,
-                         ::testing::ValuesIn(getParamsForBlockedLayout<float, int32_t>()));
+                     multiclass_nms_test_f32_i32,
+                     ::testing::ValuesIn(getParamsForBlockedLayout<float, int32_t>()));
+
+};  // namespace
