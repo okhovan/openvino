@@ -115,13 +115,17 @@ public:
                 set_values(input_roisnum, param.roisnum);
 
             // calculate output static dim {
+            auto real_num_classes = param.num_classes;
+            if (param.background_class >= 0 && static_cast<uint>(param.background_class) < param.num_classes) {
+                real_num_classes = std::max(1ul, param.num_classes - 1);
+            }
             int64_t max_output_boxes_per_class = 0;
             if (param.nms_top_k >= 0)
                 max_output_boxes_per_class = std::min((int)param.num_boxes, param.nms_top_k);
             else
                 max_output_boxes_per_class = param.num_boxes;
 
-            auto max_output_boxes_per_batch = max_output_boxes_per_class * param.num_classes;
+            auto max_output_boxes_per_batch = max_output_boxes_per_class * real_num_classes;
             if (param.keep_top_k >= 0)
                 max_output_boxes_per_batch = std::min((int)max_output_boxes_per_batch, param.keep_top_k);
 
@@ -237,7 +241,7 @@ TEST_P(multiclass_nms_test_f32, basic) {
 template <typename T, typename T_IND>
 std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
     std::vector<MulticlassNmsParams<T, T_IND>> params = {
-        {cldnn::sort_result_type::score, // 0
+        {cldnn::sort_result_type::score, //0
          false,
          data_types::i32,
          0.5f,
@@ -749,18 +753,12 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          getValues<T>({
              1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
              1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
+             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
              1.00, 0.95, 0.00, 0.00, 1.00, 1.00,
              1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
              -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
          }),
-         std::vector<T_IND>{0, 3, 6, 9, -1, -1, -1, -1, -1, -1, -1, -1},
+         std::vector<T_IND>{0, 3, -1, 6, 9, -1},
          std::vector<T_IND>{2, 2}},  // multiclass_nms_by_background
 
         {cldnn::sort_result_type::classid,//14
@@ -804,44 +802,6 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          0.5f,
          0.0f,
          3,
-         -1,
-         0,  // background class
-         true,
-         1.0f,
-         false,
-
-         2,
-         2,
-         6,
-
-         getValues<T>({0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,   0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,
-                       0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0, 0.0, 0.0,  1.0, 1.0,  0.0, 0.1,   1.0, 1.1,
-                       0.0, -0.1, 1.0, 0.9,  0.0, 10.0,  1.0, 11.0,  0.0, 10.1, 1.0, 11.1, 0.0, 100.0, 1.0, 101.0}),
-         getValues<T>({0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3,
-                       0.9, 0.75, 0.6, 0.95, 0.5, 0.3, 0.95, 0.75, 0.6, 0.80, 0.5, 0.3}),
-         std::vector<T_IND>{},
-
-         getValues<T>({
-             1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-             1.00, 0.95, 0.00, 0.00, 1.00, 1.00, 1.00, 0.80, 0.00, 10.00, 1.00, 11.00,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-             -1.0, -1.0, -1.0, -1.0, -1.0, -1.0,
-         }),
-         std::vector<T_IND>{0, 3, 6, 9, -1, -1, -1, -1, -1, -1, -1, -1},
-         std::vector<T_IND>{2, 2}},  // multiclass_nms_by_background
-
-        {cldnn::sort_result_type::classid, //16
-         false,
-         data_types::i32,
-         0.5f,
-         0.0f,
-         3,
          3,
          -1,  // background class
          true,
@@ -871,7 +831,7 @@ std::vector<MulticlassNmsParams<T, T_IND>> getMulticlassNmsParams() {
          std::vector<T_IND>{3, 0, 0, 4, 6, 9},
          std::vector<T_IND>{3, 3}},  // multiclass_nms_by_keep_top_k
 
-        {cldnn::sort_result_type::classid, //17
+        {cldnn::sort_result_type::classid, //16
          false,
          data_types::i32,
          1.0f,
