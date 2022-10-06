@@ -228,8 +228,8 @@ inline INPUT0_TYPE FUNC(intersectionOverUnion)(const __global BoxInfo* i, const 
     const float intersection_ymax = min(i->ymax, j->ymax);
     const float intersection_xmax = min(i->xmax, j->xmax);
 
-    const float intersection_area = max(intersection_ymax - intersection_ymin + norm, INPUT0_VAL_ZERO) *
-                              max(intersection_xmax - intersection_xmin + norm, INPUT0_VAL_ZERO);
+    const float intersection_area = max(intersection_ymax - intersection_ymin + norm, 0.0f) *
+                              max(intersection_xmax - intersection_xmin + norm, 0.0f);
 
     return intersection_area / (areaI + areaJ - intersection_area);
 }
