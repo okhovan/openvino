@@ -976,3 +976,258 @@ INSTANTIATE_TEST_SUITE_P(softmax_gpu_formats_test_f16_3d,
                                  ::testing::ValuesIn(formats3D)
                                  ),
                          PrintToStringParamName());
+
+/*
+TEST(softmax_gpu, large_f) {
+    //  Input  : 2x3x2x2
+//    static const int32_t x_size = 2, y_size = 2, feature_num = 3,
+//        batch_num = 2, buf_size = x_size*y_size * batch_num * feature_num;
+    const int32_t batch_num = 16,
+                  feature_num = 4096,
+                  y_size = 4096,
+                  x_size = 1;
+    const auto buf_size = x_size*y_size * batch_num * feature_num;
+
+    auto& engine = get_test_engine();
+
+    auto input = engine.allocate_memory({ data_types::f16, format::bfyx, { batch_num, feature_num, x_size, y_size } });
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(softmax("softmax", "input", 1));
+
+    vector<half_t> input_vec;
+    input_vec.resize(buf_size);
+    std::vector<half_t> expected_max_values;
+    expected_max_values.resize(buf_size);
+    for(uint i = 0; i < buf_size; ++i) {
+        input_vec[i] = static_cast<half_t>(i);
+        expected_max_values[i] = static_cast<half_t>(i);
+    }
+    set_values(input, input_vec);
+
+    network network(engine, topology);
+
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    EXPECT_EQ(outputs.size(), size_t(1));
+    EXPECT_EQ(outputs.begin()->first, "softmax");
+
+    auto output = outputs.at("softmax").get_memory();
+    cldnn::mem_lock<half_t> output_ptr(output, get_test_stream());
+    float out_buffer[buf_size];
+    for (uint32_t i = 0; i < buf_size; i++) {
+        out_buffer[i] = output_ptr[i];
+    }
+
+    float temp_max = 0;
+    float expected_sum = 1.0f;
+    int max_value_buffer_index = 0;
+    for (uint32_t i = 0; i < batch_num; i++) { //this for loops will sum results in a batch per feature, we expect that: sum = 1.0f
+        for (uint32_t j = 0; j < y_size; j++) {
+            for (uint32_t k = 0; k < x_size; k++) {
+                float sum = 0.0f;
+                for (uint32_t l = 0; l < feature_num; l++) {
+                    int index = i * feature_num * x_size * y_size +
+                                l * x_size * y_size +
+                                j * x_size +
+                                k;
+                    if (out_buffer[index] >= temp_max) {
+                        temp_max = out_buffer[index];
+                    }
+                    sum += out_buffer[index];
+                }
+                //EXPECT_EQ(true, are_equal(temp_max, expected_max_values[max_value_buffer_index]));
+                temp_max = 0;
+                max_value_buffer_index++;
+
+                EXPECT_EQ(true, are_equal(sum, expected_sum));
+                sum = 0.0f;
+            }
+        }
+    }
+}
+*/
+
+
+struct softmax_perf_test : public softmax_gpu_formats_test<float>
+{
+    static double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
+                                const std::string& primitive_id)
+    {
+        using namespace std::chrono;
+        std::shared_ptr<event> e = outputs.at(primitive_id).get_event();
+        e->wait(); // should ensure execution completion, if not segfault will occur
+        double avg_time = 0.0;
+        auto intervals = e->get_profiling_info();
+        for (const auto& q : intervals)
+        {
+            if (q.stage == instrumentation::profiling_stage::executing) {
+                continue;
+            }
+            avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
+            break;
+        }
+        return avg_time;
+    }
+
+    static void print_all_perf(std::map<primitive_id, network_output> outputs)
+    {
+        std::cout << "Print last run time" << std::endl;
+        using namespace std::chrono;
+        for( const auto &n : outputs ) {
+            std::shared_ptr<event> e = n.second.get_event();
+            auto intervals = e->get_profiling_info();
+            double time = 0.0;
+            for (const auto& q : intervals)
+            {
+                if (q.stage == instrumentation::profiling_stage::executing) {
+                    continue;
+                }
+                time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
+                break;
+            }
+            std::cout << n.first << ":" << time << std::endl;
+        }
+        std::cout << std::endl;
+    }
+
+    cldnn::engine_configuration get_profiling_config() {
+        //const bool enable_profiling = true;
+        std::string sources_dumps_dir = "";
+        cldnn::queue_types queue_type = cldnn::queue_types::out_of_order;
+        priority_mode_types priority_mode = priority_mode_types::disabled;
+        throttle_mode_types throttle_mode = throttle_mode_types::disabled;
+        bool use_memory_pool = true;
+        bool use_unified_shared_memory = true;
+        return engine_configuration(true, queue_type, sources_dumps_dir, priority_mode, throttle_mode, use_memory_pool, use_unified_shared_memory);
+    }
+
+    template <typename T>
+    void fill_random_typed(memory::ptr mem, int min, int max, int k) {
+        auto l = mem->get_layout();
+        size_t b = l.batch();
+        size_t f = l.feature();
+        size_t x = l.spatial(0);
+        size_t y = l.spatial(1);
+
+        auto data = generate_random_4d<T>(b, f, y, x, min, max, k);
+        cldnn::mem_lock<T> ptr(mem, get_test_stream());
+        for (size_t bi = 0; bi < b; ++bi) {
+            for (size_t fi = 0; fi < f; ++fi) {
+                for (size_t yi = 0; yi < y; ++yi) {
+                    for (size_t xi = 0; xi < x; ++xi) {
+                        auto coords = tensor(batch(bi), feature(fi), spatial(xi, yi, 0, 0));
+                        auto offset = mem->get_layout().get_linear_offset(coords);
+                        ptr[offset] = data[bi][fi][yi][xi];
+                    }
+                }
+            }
+        }
+    }
+
+    void fill_random(memory::ptr mem) {
+        auto dt = mem->get_layout().data_type;
+        switch (dt) {
+        case data_types::f32:
+            fill_random_typed<float>(mem, -127, 127, 2);
+            break;
+        case data_types::f16:
+            fill_random_typed<FLOAT16>(mem, -127, 127, 2);
+            break;
+        case data_types::i8:
+            fill_random_typed<int8_t>(mem, -127, 127, 1);
+            break;
+        case data_types::u8:
+            fill_random_typed<uint8_t>(mem, 0, 255, 1);
+            break;
+        default:
+            break;
+        }
+    }
+
+    void execute_perf_test(const SoftmaxParamsWithFormat<float>& p, const std::string& kernel, const bool do_planar = false) {
+        auto& engine = get_test_engine(get_profiling_config());
+        SoftmaxParams<float> params;
+        format::type origin_format;
+        format::type target_format;
+        std::tie(params, origin_format, target_format) = p;
+        const auto input_type = data_types::f16;
+
+
+        const int32_t batch_num = 16,
+                      feature_num = 4096,
+                      y_size = 4096,
+                      x_size = 1;
+//        const int32_t batch_num = 16,
+//                      feature_num = 12,
+//                      y_size = 12,
+//                      x_size = 1;
+
+
+        auto in_mem = engine.allocate_memory({ input_type, format::bfyx, { batch_num, feature_num, y_size, x_size } });
+        fill_random(in_mem);
+
+        format working_format = do_planar == true ? origin_format : target_format;
+
+        constexpr auto AXIS = -1;
+
+        cldnn::topology topo_opt;
+        topo_opt.add(input_layout("in", in_mem->get_layout()));
+        topo_opt.add(reorder("in_to_input_type", "in", target_format, input_type));
+        topo_opt.add(softmax("softmax_opt", "in", AXIS));
+        topo_opt.add(reorder("res_to_bfyx", "softmax_opt", origin_format, input_type));
+
+        auto build_opts_opt = build_options();
+        build_opts_opt.set_option(build_option::outputs({"res_to_bfyx"}));
+        build_opts_opt.set_option(build_option::force_implementations({ {"softmax_opt", {working_format, kernel}} }));
+        build_opts_opt.set_option(build_option::debug(true));
+        // optimize_data is turned on to test cross-layout
+
+        network net_opt(engine, topo_opt, build_opts_opt);
+
+        // Use in_mem from ref network
+        net_opt.set_input_data("in", in_mem);
+
+        // first execution of opt
+        std::map<primitive_id, network_output> result_opt;
+        auto r = 100;
+        double exectime = 0.f;
+        for (int i = 0; i < r; ++i) {
+            result_opt = net_opt.execute();
+            exectime += get_exectime(result_opt, "softmax_opt");
+        }
+        exectime /= r;
+        std::string frm_str = format(working_format).to_string();
+        std::string input_type_str = data_type_traits::name(input_type);
+        std::string is_planar = (do_planar == true) ? " planar " : " blocked ";
+        std::string mode;
+
+        std::cout << "Exectued time " << "" << mode << " " << is_planar << " " << kernel << " "
+                  << frm_str << " " << input_type_str << " " << exectime << std::endl;
+
+        // Uncomment line below if you like to see the latencies of all operations from last iteration
+        //print_all_perf(result_opt);
+    }
+};
+
+TEST_P(softmax_perf_test, random) {
+    auto param = GetParam();
+//   Comparison tests (2 lines below) are disabled because they took too much time on big shapes
+//    execute_compare(param, true, "resample_opt");
+//    execute_compare(param, true, "resample_ref");
+    execute_perf_test(param, "softmax_gpu_items_class_optimized", true);
+    execute_perf_test(param, "softmax_gpu_ref", true);
+}
+
+
+INSTANTIATE_TEST_SUITE_P(softmax_perf_test,
+                         softmax_perf_test,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn({
+                                     SoftmaxParams<float>{1, tensor(16, 4096, 4096, 1), std::vector<float>{}, std::vector<float>{} }
+                                 }),
+                                 ::testing::Values(format::bfyx),
+                                 ::testing::Values(format::bfyx)
+                                 ),
+                         PrintToStringParamName());
