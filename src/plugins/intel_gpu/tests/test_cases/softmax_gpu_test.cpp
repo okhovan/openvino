@@ -1155,17 +1155,19 @@ struct softmax_perf_test : public softmax_gpu_formats_test<float>
         const auto input_type = data_types::f16;
 
 
+/*
         const int32_t batch_num = 16,
                       feature_num = 4096,
                       y_size = 4096,
                       x_size = 1;
+*/
 //        const int32_t batch_num = 16,
 //                      feature_num = 12,
 //                      y_size = 12,
 //                      x_size = 1;
 
 
-        auto in_mem = engine.allocate_memory({ input_type, format::bfyx, { batch_num, feature_num, y_size, x_size } });
+        auto in_mem = engine.allocate_memory({ input_type, format::bfyx, params.input_tensor/*{ batch_num, feature_num, x_size, y_size }*/ });
         fill_random(in_mem);
 
         format working_format = do_planar == true ? origin_format : target_format;
@@ -1225,7 +1227,7 @@ INSTANTIATE_TEST_SUITE_P(softmax_perf_test,
                          softmax_perf_test,
                          ::testing::Combine(
                                  ::testing::ValuesIn({
-                                     SoftmaxParams<float>{1, tensor(16, 4096, 4096, 1), std::vector<float>{}, std::vector<float>{} }
+                                     SoftmaxParams<float>{1, tensor(16, 4096, 1, 4096), std::vector<float>{}, std::vector<float>{} }
                                  }),
                                  ::testing::Values(format::bfyx),
                                  ::testing::Values(format::bfyx)
