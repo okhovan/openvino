@@ -8,6 +8,8 @@
 #define DATA_PER_WORKITEM ( (INPUT0_CLASS_NUM + (WORKITEMS_PER_CLASSES - 1) ) / WORKITEMS_PER_CLASSES)
 #define FULL_ITERATIONS_NUM (INPUT0_CLASS_NUM / WORKITEMS_PER_CLASSES)
 
+#define ACCUMULATOR_VEC16 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16)
+
 __attribute__((intel_reqd_sub_group_size(16)))
 KERNEL(softmax_items_class_optimized)(
     __global INPUT0_TYPE* input,
@@ -62,8 +64,8 @@ KERNEL(softmax_items_class_optimized)(
 #else
         //data[cls] = native_exp(data[cls] - max_value);
 
-        float16 data16 = vload16(cls, data);
-        float16 max_value16 = (float16)(max_value);
+        ACCUMULATOR_VEC16 data16 = vload16(cls, data);
+        ACCUMULATOR_VEC16 max_value16 = TO_ACCUMULATOR_TYPE(max_value);
         data16 -= max_value16;
         data16 = native_exp(data16);
 
