@@ -53,16 +53,31 @@ KERNEL(softmax_items_class_optimized)(
     // PART 2. Calculate DENOMINATOR
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
-    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
+    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; /*cls++*/)
     {
 // This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
 // for current kernel but driver doesn't report any errors (JIRA 32211)
 #if HAS_DRIVER_PROBLEMS
         data[cls] = data[cls] == max_value ? 1.0 : native_exp(data[cls] - max_value);
 #else
-        data[cls] = native_exp(data[cls] - max_value);
+        //data[cls] = native_exp(data[cls] - max_value);
+
+        float16 data16 = vload16(cls, data);
+        float16 max_value16 = (float16)(max_value);
+        data16 -= max_value16;
+        data16 = native_exp(data16);
+
+        vstore16(data16, cls, data);
 #endif
-        denominator += data[cls];
+        //denominator += data[cls];
+        denominator += data16.s0 + data16.s1 + data16.s2 + data16.s3 + data16.s4 + data16.s5 + data16.s6 + data16.s7
+                     + data16.s8 + data16.s9 + data16.sA + data16.sB + data16.sC + data16.sD + data16.sE + data16.sF;
+
+//        for(uint z=0; z<16; ++z) {
+//            denominator += data[cls+z];
+//        }
+        cls += 16;
+
     }
     if(simd_lane < LEFTOVERS)
     {
