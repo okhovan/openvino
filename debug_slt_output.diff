@@ -1,0 +1,20 @@
+diff --git a/src/tests/functional/shared_test_classes/src/base/ov_subgraph.cpp b/src/tests/functional/shared_test_classes/src/base/ov_subgraph.cpp
+index 57654cecc..06340ed26 100644
+--- a/src/tests/functional/shared_test_classes/src/base/ov_subgraph.cpp
++++ b/src/tests/functional/shared_test_classes/src/base/ov_subgraph.cpp
+@@ -326,6 +326,15 @@ void SubgraphBaseTest::validate() {
+     ASSERT_EQ(actualOutputs.size(), expectedOutputs.size())
+         << "nGraph interpreter has " << expectedOutputs.size() << " outputs, while IE " << actualOutputs.size();
+ 
++    for (int j = 0; j < expectedOutputs.size(); ++j) {
++        std::cout << "output " << j << "\n";
++        for (size_t i = 0; i < shape_size(expectedOutputs[j].get_shape()); ++i) {
++            double expected_value = expectedOutputs[j].data<float>()[i];
++            double actual_value = actualOutputs[j].data<float>()[i];
++            std::cout << "i=" << i << ":  " << expected_value << "   " << actual_value << "\n";
++        }
++    }
++
+     compare(expectedOutputs, actualOutputs);
+ }
+ 

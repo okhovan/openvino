@@ -62,17 +62,17 @@ SoftmaxKerneItemsClassOptimized::Parent::DispatchData SoftmaxKerneItemsClassOpti
 }
 
 KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
-    //const auto& p = static_cast<const softmax_params&>(params);
+    const auto& p = static_cast<const softmax_params&>(params);
 
-    //return GetItemClassCount(p.inputs[0], p.dim) >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    return FORCE_PRIORITY_1;
+    return GetItemClassCount(p.inputs[0], p.dim) >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
+//    return FORCE_PRIORITY_1;
 }
 
 JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes));
-    jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", 0/*params.engineInfo.bIMADSupport*/));
+    jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", /*0*/params.engineInfo.bIMADSupport));
 
     return jit;
 }
