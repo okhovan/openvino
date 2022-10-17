@@ -65,14 +65,18 @@ KernelsPriority SoftmaxKerneItemsClassOptimized::GetKernelsPriority(const Params
     const auto& p = static_cast<const softmax_params&>(params);
 
     return GetItemClassCount(p.inputs[0], p.dim) >= 32 ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
-//    return FORCE_PRIORITY_1;
 }
 
 JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_params& params, DispatchData dispatchData) const {
     auto jit = SoftmaxItemsClassKernelBase::GetJitConstants(params, dispatchData);
 
     jit.AddConstant(MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes));
-    jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", /*0*/params.engineInfo.bIMADSupport));
+    jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.bIMADSupport));
+
+    const auto items_class_count = GetItemClassCount(params.inputs[0], params.dim);
+    const auto leftovers = items_class_count % workitems_per_classes;
+    const bool use_vector_functions = items_class_count >= 512 && leftovers == 0;
+    jit.AddConstant(MakeJitConstant("USE_VECTOR_FUNCTIONS", use_vector_functions));
 
     return jit;
 }

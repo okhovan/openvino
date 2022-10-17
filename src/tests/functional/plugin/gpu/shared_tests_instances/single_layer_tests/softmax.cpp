@@ -20,9 +20,23 @@ const std::vector<ov::Shape> inputShapes2D = {
     {1, 100},
     {100, 1},
     {10, 10},
-    {100, 10},
+    {100, 10}
+};
 
-    {512, 512}
+const std::vector<ov::Shape> testVectorShapes2D = {
+    {32, 32},
+    {63, 63},
+
+    {64, 64},
+    {512, 1},
+    {512, 512},
+    {1, 512},
+
+    {512, 64},
+    {64, 512},
+
+    {4096, 1},
+    {1, 4096},
 };
 
 const std::vector<int64_t> axis2D = {
@@ -95,5 +109,23 @@ INSTANTIATE_TEST_SUITE_P(
         params5D,
         SoftMax8LayerTest::getTestCaseName
 );
+
+const auto paramsVector2D = testing::Combine(
+    testing::ValuesIn(netPrecisions),
+    ::testing::Values(ov::element::undefined),
+    ::testing::Values(ov::element::undefined),
+    testing::ValuesIn(ov::test::static_shapes_to_test_representation(testVectorShapes2D)),
+    testing::ValuesIn(axis2D),
+    testing::Values(CommonTestUtils::DEVICE_GPU),
+    testing::Values(ov::AnyMap())
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_SoftMaxVector2D,
+        SoftMax8LayerTest,
+        paramsVector2D,
+        SoftMax8LayerTest::getTestCaseName
+);
+
 
 }  // namespace

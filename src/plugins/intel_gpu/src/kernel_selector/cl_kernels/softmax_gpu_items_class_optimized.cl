@@ -35,15 +35,6 @@ KERNEL(softmax_items_class_optimized)(
     ACCUMULATOR_TYPE max_value = UNIT_VAL_MIN;
     ACCUMULATOR_TYPE data[DATA_PER_WORKITEM];
 
-/*
-    uint fin = FULL_ITERATIONS_NUM;
-    uint wpc = WORKITEMS_PER_CLASSES;
-    uint icn = INPUT0_CLASS_NUM;
-
-    if(other0==0 && other1==0 && other2==0 && other3==0 && simd_lane==0) {
-        printf("INPUT0_CLASS_NUM=%d FULL_ITERATIONS_NUM=%d WORKITEMS_PER_CLASSES=%d\n", icn, fin, wpc);
-    }
-*/
     // PART 1. Calculate MAX value
     uint input_idx = in_depth_offset + simd_lane * INPUT0_CLASS_PITCH;
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; cls++)
@@ -64,52 +55,28 @@ KERNEL(softmax_items_class_optimized)(
     // PART 2. Calculate DENOMINATOR
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
-    ACCUMULATOR_VEC16 max_value16 = (ACCUMULATOR_VEC16)(max_value, max_value, max_value, max_value,max_value, max_value, max_value, max_value,max_value, max_value, max_value, max_value,max_value, max_value, max_value, max_value);
-    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; /*cls++*/)
+    ACCUMULATOR_VEC16 max_value16 = (ACCUMULATOR_VEC16)(max_value);
+    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; )
     {
-// This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
-// for current kernel but driver doesn't report any errors (JIRA 32211)
-#if HAS_DRIVER_PROBLEMS
-    #if FULL_ITERATIONS_NUM < 0  /*32*/
-            data[cls] = data[cls] == max_value ? 1.0 : native_exp(data[cls] - max_value);
-            denominator += data[cls];
-
-            printf("%d %d %d %d %02d %02d - %f\n",
-                   other0, other1, other2, other3, simd_lane, cls, denominator);
-
-            ++cls;
-    #else
-            ACCUMULATOR_VEC16 data16 = vload16(0, &data[cls]);
-            data16 -= max_value16;
-            data16 = native_exp(data16);
-            //data16.s0 = data16.s0 == max_value ? 1
-
-
-            vstore16(data16, 0, &data[cls]);
-
-            denominator += data16.s0 + data16.s1 + data16.s2 + data16.s3 + data16.s4 + data16.s5 + data16.s6 + data16.s7
-                         + data16.s8 + data16.s9 + data16.sA + data16.sB + data16.sC + data16.sD + data16.sE + data16.sF;
-
-            printf("%d %d %d %d %02d %02d - %f\n",
-                   other0, other1, other2, other3, simd_lane, cls, denominator);
-
-            cls += 16;
-    #endif
-#else
-        //***data[cls] = native_exp(data[cls] - max_value);
-
-        ACCUMULATOR_VEC16 data16 = vload16(cls, data);
+#if USE_VECTOR_FUNCTIONS
+        ACCUMULATOR_VEC16 data16 = vload16(0, &data[cls]);
         data16 -= max_value16;
         data16 = native_exp(data16);
-
-        vstore16(data16, cls, data);
-
+        vstore16(data16, 0, &data[cls]);
         denominator += data16.s0 + data16.s1 + data16.s2 + data16.s3 + data16.s4 + data16.s5 + data16.s6 + data16.s7
                      + data16.s8 + data16.s9 + data16.sA + data16.sB + data16.sC + data16.sD + data16.sE + data16.sF;
-
         cls += 16;
-#endif
-        //***denominator += data[cls];
+#else
+    // This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
+    // for current kernel but driver doesn't report any errors (JIRA 32211)
+    #if HAS_DRIVER_PROBLEMS
+        data[cls] = data[cls] == max_value ? 1.0 : native_exp(data[cls] - max_value);
+    #else
+        data[cls] = native_exp(data[cls] - max_value);
+    #endif
+        denominator += data[cls];
+        ++cls;
+#endif  // USE_VECTOR_FUNCTIONS
     }
     if(simd_lane < LEFTOVERS)
     {
