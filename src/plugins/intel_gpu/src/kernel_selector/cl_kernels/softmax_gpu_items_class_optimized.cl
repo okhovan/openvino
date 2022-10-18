@@ -55,14 +55,16 @@ KERNEL(softmax_items_class_optimized)(
     // PART 2. Calculate DENOMINATOR
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
+#if USE_VECTOR_FUNCTIONS
     ACCUMULATOR_VEC16 max_value16 = (ACCUMULATOR_VEC16)(max_value);
+#endif
     for (uint cls = 0; cls < FULL_ITERATIONS_NUM; )
     {
 #if USE_VECTOR_FUNCTIONS
-        ACCUMULATOR_VEC16 data16 = vload16(0, &data[cls]);
+        ACCUMULATOR_VEC16 data16 = vload16(cls, data);
         data16 -= max_value16;
         data16 = native_exp(data16);
-        vstore16(data16, 0, &data[cls]);
+        vstore16(data16, cls, data);
         denominator += data16.s0 + data16.s1 + data16.s2 + data16.s3 + data16.s4 + data16.s5 + data16.s6 + data16.s7
                      + data16.s8 + data16.s9 + data16.sA + data16.sB + data16.sC + data16.sD + data16.sE + data16.sF;
         cls += 16;
