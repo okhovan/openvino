@@ -11,6 +11,7 @@
 #define ACCUMULATOR_VEC16 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16)
 
 __attribute__((intel_reqd_sub_group_size(16)))
+__attribute__((vec_type_hint(float16)))
 KERNEL(softmax_items_class_optimized)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -56,9 +57,12 @@ KERNEL(softmax_items_class_optimized)(
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
 #if USE_VECTOR_FUNCTIONS
+    #define class_iterations_num (FULL_ITERATIONS_NUM / 16)
     ACCUMULATOR_VEC16 max_value16 = (ACCUMULATOR_VEC16)(max_value);
+#else
+    #define class_iterations_num FULL_ITERATIONS_NUM
 #endif
-    for (uint cls = 0; cls < FULL_ITERATIONS_NUM; )
+    for (uint cls = 0; cls < class_iterations_num; ++cls)
     {
 #if USE_VECTOR_FUNCTIONS
         ACCUMULATOR_VEC16 data16 = vload16(cls, data);
@@ -67,7 +71,6 @@ KERNEL(softmax_items_class_optimized)(
         vstore16(data16, cls, data);
         denominator += data16.s0 + data16.s1 + data16.s2 + data16.s3 + data16.s4 + data16.s5 + data16.s6 + data16.s7
                      + data16.s8 + data16.s9 + data16.sA + data16.sB + data16.sC + data16.sD + data16.sE + data16.sF;
-        cls += 16;
 #else
     // This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
     // for current kernel but driver doesn't report any errors (JIRA 32211)
@@ -77,7 +80,6 @@ KERNEL(softmax_items_class_optimized)(
         data[cls] = native_exp(data[cls] - max_value);
     #endif
         denominator += data[cls];
-        ++cls;
 #endif  // USE_VECTOR_FUNCTIONS
     }
     if(simd_lane < LEFTOVERS)
