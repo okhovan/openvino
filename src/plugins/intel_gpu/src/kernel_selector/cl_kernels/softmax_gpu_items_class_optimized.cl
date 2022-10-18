@@ -57,20 +57,20 @@ KERNEL(softmax_items_class_optimized)(
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
 #if USE_VECTOR_FUNCTIONS
-    #define class_iterations_num (FULL_ITERATIONS_NUM / 16)
+    #define CLASS_ITERATIONS_NUM (FULL_ITERATIONS_NUM / 16)
     ACCUMULATOR_VEC16 max_value16 = (ACCUMULATOR_VEC16)(max_value);
+    ACCUMULATOR_VEC16 denominator16 = (ACCUMULATOR_VEC16)(0.0);
 #else
-    #define class_iterations_num FULL_ITERATIONS_NUM
+    #define CLASS_ITERATIONS_NUM FULL_ITERATIONS_NUM
 #endif
-    for (uint cls = 0; cls < class_iterations_num; ++cls)
+    for (uint cls = 0; cls < CLASS_ITERATIONS_NUM; ++cls)
     {
 #if USE_VECTOR_FUNCTIONS
         ACCUMULATOR_VEC16 data16 = vload16(cls, data);
         data16 -= max_value16;
         data16 = native_exp(data16);
         vstore16(data16, cls, data);
-        denominator += data16.s0 + data16.s1 + data16.s2 + data16.s3 + data16.s4 + data16.s5 + data16.s6 + data16.s7
-                     + data16.s8 + data16.s9 + data16.sA + data16.sB + data16.sC + data16.sD + data16.sE + data16.sF;
+        denominator16 += data16;
 #else
     // This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
     // for current kernel but driver doesn't report any errors (JIRA 32211)
@@ -82,6 +82,12 @@ KERNEL(softmax_items_class_optimized)(
         denominator += data[cls];
 #endif  // USE_VECTOR_FUNCTIONS
     }
+#if USE_VECTOR_FUNCTIONS
+    denominator += denominator16.s0 + denominator16.s1 + denominator16.s2 + denominator16.s3 +
+                   denominator16.s4 + denominator16.s5 + denominator16.s6 + denominator16.s7 +
+                   denominator16.s8 + denominator16.s9 + denominator16.sA + denominator16.sB +
+                   denominator16.sC + denominator16.sD + denominator16.sE + denominator16.sF;
+#endif
     if(simd_lane < LEFTOVERS)
     {
 // This is a temporary solution for unresolved problem when ocl kernels compilation step doesn't produce actual binaries
