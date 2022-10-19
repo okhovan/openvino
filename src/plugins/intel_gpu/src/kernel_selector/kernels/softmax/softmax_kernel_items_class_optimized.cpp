@@ -73,11 +73,6 @@ JitConstants SoftmaxKerneItemsClassOptimized::GetJitConstants(const softmax_para
     jit.AddConstant(MakeJitConstant("WORKITEMS_PER_CLASSES", workitems_per_classes));
     jit.AddConstant(MakeJitConstant("HAS_DRIVER_PROBLEMS", params.engineInfo.bIMADSupport));
 
-    const auto items_class_count = GetItemClassCount(params.inputs[0], params.dim);
-    const auto leftovers = items_class_count % workitems_per_classes;
-    const bool use_vector_functions = items_class_count >= 512 && leftovers == 0;
-    jit.AddConstant(MakeJitConstant("USE_VECTOR_FUNCTIONS", use_vector_functions));
-
     return jit;
 }
 KernelsData SoftmaxKerneItemsClassOptimized::GetKernelsData(const Params& params,

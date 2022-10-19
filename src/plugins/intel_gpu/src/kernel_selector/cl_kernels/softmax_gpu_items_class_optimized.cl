@@ -8,10 +8,15 @@
 #define DATA_PER_WORKITEM ( (INPUT0_CLASS_NUM + (WORKITEMS_PER_CLASSES - 1) ) / WORKITEMS_PER_CLASSES)
 #define FULL_ITERATIONS_NUM (INPUT0_CLASS_NUM / WORKITEMS_PER_CLASSES)
 
-#define ACCUMULATOR_VEC16 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16)
+#if INPUT0_CLASS_NUM >= 256 && LEFTOVERS == 0
+    #define USE_VECTOR
+    #define ACCUMULATOR_VEC16 MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, 16)
+#endif
 
 __attribute__((intel_reqd_sub_group_size(16)))
-__attribute__((vec_type_hint(float16)))
+#ifdef USE_VECTOR
+__attribute__((vec_type_hint(ACCUMULATOR_VEC16)))
+#endif
 KERNEL(softmax_items_class_optimized)(
     __global INPUT0_TYPE* input,
     __global OUTPUT_TYPE* output
@@ -56,7 +61,7 @@ KERNEL(softmax_items_class_optimized)(
     // PART 2. Calculate DENOMINATOR
     // TODO: currently we calculate on float32 because it's lot of "add" operation and it stuck on the value "8192.0f"
     ACCUMULATOR_TYPE denominator = 0.0;
-#if USE_VECTOR_FUNCTIONS
+#ifdef USE_VECTOR
     #define CLASS_ITERATIONS_NUM (FULL_ITERATIONS_NUM / 16)
     ACCUMULATOR_VEC16 max_value16 = (ACCUMULATOR_VEC16)(max_value);
     ACCUMULATOR_VEC16 denominator16 = (ACCUMULATOR_VEC16)(0.0);
@@ -65,7 +70,7 @@ KERNEL(softmax_items_class_optimized)(
 #endif
     for (uint cls = 0; cls < CLASS_ITERATIONS_NUM; ++cls)
     {
-#if USE_VECTOR_FUNCTIONS
+#ifdef USE_VECTOR
         ACCUMULATOR_VEC16 data16 = vload16(cls, data);
         data16 -= max_value16;
         data16 = native_exp(data16);
@@ -80,9 +85,9 @@ KERNEL(softmax_items_class_optimized)(
         data[cls] = native_exp(data[cls] - max_value);
     #endif
         denominator += data[cls];
-#endif  // USE_VECTOR_FUNCTIONS
+#endif  // USE_VECTOR
     }
-#if USE_VECTOR_FUNCTIONS
+#ifdef USE_VECTOR
     denominator += denominator16.s0 + denominator16.s1 + denominator16.s2 + denominator16.s3 +
                    denominator16.s4 + denominator16.s5 + denominator16.s6 + denominator16.s7 +
                    denominator16.s8 + denominator16.s9 + denominator16.sA + denominator16.sB +

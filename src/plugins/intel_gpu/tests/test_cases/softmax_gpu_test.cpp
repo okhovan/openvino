@@ -1219,7 +1219,7 @@ TEST_P(softmax_perf_test, random) {
 //    execute_compare(param, true, "resample_opt");
 //    execute_compare(param, true, "resample_ref");
     execute_perf_test(param, "softmax_gpu_items_class_optimized", true);
-    execute_perf_test(param, "softmax_gpu_ref", true);
+    //execute_perf_test(param, "softmax_gpu_ref", true);
 }
 
 
