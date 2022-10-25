@@ -1062,7 +1062,7 @@ struct softmax_perf_test : public softmax_gpu_formats_test<float>
         auto intervals = e->get_profiling_info();
         for (const auto& q : intervals)
         {
-            if (q.stage == instrumentation::profiling_stage::executing) {
+            if (q.stage != instrumentation::profiling_stage::executing) {
                 continue;
             }
             avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
@@ -1081,7 +1081,7 @@ struct softmax_perf_test : public softmax_gpu_formats_test<float>
             double time = 0.0;
             for (const auto& q : intervals)
             {
-                if (q.stage == instrumentation::profiling_stage::executing) {
+                if (q.stage != instrumentation::profiling_stage::executing) {
                     continue;
                 }
                 time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
