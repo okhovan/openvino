@@ -2059,3 +2059,457 @@ TEST(fully_connected_gpu, dynamic_multi_inference_multiple_shapes) {
         }
     }
 }
+
+TEST(fully_connected_new_shape_inference, new_shape_inference_with_bias) {
+    auto& engine = get_test_engine();
+
+    const int32_t input_f = 3, input_b = 2, weight_b = 4;
+
+    const cldnn::layout input_data_layout{ ov::PartialShape{ input_b, input_f }, data_types::f32,format::bfyx };
+    const auto input_data = engine.allocate_memory(input_data_layout);
+    const cldnn::layout weights_layout{ ov::PartialShape{ weight_b, input_f }, data_types::f32,format::bfyx };
+    const auto weights_data = engine.allocate_memory(weights_layout);
+    const cldnn::layout bias_layout{ ov::PartialShape{ 1, weight_b }, data_types::f32,format::bfyx };
+    const auto bias_data = engine.allocate_memory(bias_layout);
+
+    set_values(input_data, { -0.5f, 1.0f, 2.0f,
+                             1.5f, 0.5f, 0.0f  });
+    set_values(weights_data, { 1.5f, 1.0f, 0.5f,
+                               -1.0f, 0.0f, 0.5f,
+                               0.5f, -0.5f, -2.0f,
+                               -0.5f, 1.0f, 1.5f});
+    set_values(bias_data, { 1.0f, 2.0f, 3.0f, 4.0f });
+
+    const cldnn::topology topology{
+        input_layout("input", input_data_layout),
+        data("weights", weights_data),
+        data("bias", bias_data),
+        fully_connected("fc", input_info("input"), "weights", "bias", padding(), 2, true)
+    };
+
+    ExecutionConfig config;
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_data);
+
+    const auto outputs = network.execute();
+    ASSERT_EQ(outputs.size(), size_t(1));
+
+    const auto output_mem = outputs.begin()->second.get_memory();
+    const cldnn::mem_lock<float> output_ptr (output_mem, get_test_stream());
+    const std::vector<float> expected = {2.25f, 3.5f, -1.75f, 8.25f,
+                                         3.75f, 0.5f, 3.5f, 3.75f};
+
+    ASSERT_EQ(expected.size(), output_ptr.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(expected[i], output_ptr[i]) << i;
+    }
+
+}
+
+namespace {
+const std::vector<format::type> layouts2D{
+        format::bfyx,
+        format::b_fs_yx_fsv16,
+        format::b_fs_yx_fsv32,
+        format::bs_fs_yx_bsv16_fsv16,
+        format::bs_fs_yx_bsv16_fsv32,
+        format::bs_fs_yx_bsv32_fsv16,
+        format::bs_fs_yx_bsv32_fsv32
+};
+
+const std::vector<format::type> layouts3D{
+        format::bfzyx,
+        format::b_fs_zyx_fsv16,
+        format::b_fs_zyx_fsv32,
+        format::bs_fs_zyx_bsv16_fsv16,
+        format::bs_fs_zyx_bsv16_fsv32,
+        format::bs_fs_zyx_bsv32_fsv16,
+        format::bs_fs_zyx_bsv32_fsv32
+};
+
+const std::vector<format::type> layouts4D{
+        format::bfwzyx
+};
+
+template <typename T>
+struct FCParam {
+    std::string name;
+    ov::PartialShape input_shape;
+    std::vector<T> input;
+    ov::PartialShape weights_shape;
+    std::vector<T> weights;
+    std::vector<T> expected;
+};
+
+template<typename T>
+std::vector<T> getValues(const std::vector<float>& values) {
+    std::vector<T> result(values.begin(), values.end());
+    return result;
+}
+
+template <typename T> float getError();
+
+template<>
+float getError<float>() {
+    return 0.001;
+}
+
+template<>
+float getError<half_t>() {
+    return 0.2;
+}
+
+template <typename T>
+std::vector<FCParam<T>> getFCParams() {
+    const std::vector<FCParam<T>> params = {
+        {
+            "2d_1",
+            ov::PartialShape{1, 3},
+            getValues<T>({ -0.5f, 2.0f, 0.5f }),
+            ov::PartialShape{4, 3},
+            getValues<T>({ 1.5f, 0.0f, -2.0f,
+              1.0f, 0.5f, -0.5f,
+              0.5f, 0.5f, 1.0f,
+              -1.0f, -0.5f, 1.5f
+            }),
+            getValues<T>({-1.75f, 0.25f, 1.25f, 0.25f})
+        },
+        {
+            "2d_2",
+            ov::PartialShape{2, 3},
+            getValues<T>({ -0.5f, 2.0f, 0.5f,
+              3.0f, 4.0f, 5.0f
+            }),
+            ov::PartialShape{4, 3},
+            getValues<T>({ 1.5f, 0.0f, -2.0f,
+              1.0f, 0.5f, -0.5f,
+              0.5f, 0.5f, 1.0f,
+              -1.0f, -0.5f, 1.5f
+            }),
+            getValues<T>({-1.75f, 0.25f, 1.25f, 0.25f,
+             -5.5f, 2.5f, 8.5f, 2.5f
+            })
+        },
+        {
+            "3d_1batch",
+            ov::PartialShape{1, 2, 4},
+            getValues<T>({ //b0
+                -0.5f, 2.0f, 0.5f, 1.0f,
+                3.0f, 4.0f, 5.0f, 2.0f,
+            }),
+            ov::PartialShape{1, 3, 4},
+            getValues<T>({ //b0
+                1.5f, -1.0f, 0.5f, -0.5f,
+                1.0f, 0.0f, -0.5f, 1.0f,
+                0.5f, 0.5f, -2.0f, 1.5f
+            }),
+            getValues<T>({
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f
+            })
+        },
+        {
+            "3d_2batch",
+             ov::PartialShape{2, 2, 4},
+            getValues<T>({    //b0
+                 -0.5f, 2.0f, 0.5f, 1.0f,
+                 3.0f, 4.0f, 5.0f, 2.0f,
+                 //b1
+                 -1.5f, 3.0f, 1.5f, 2.0f,
+                 4.0f, 5.0f, 6.0f, 3.0f,
+            }),
+            ov::PartialShape{2, 3, 4},
+            getValues<T>({  //b0
+               1.5f, -1.0f, 0.5f, -0.5f,
+               1.0f, 0.0f, -0.5f, 1.0f,
+               0.5f, 0.5f, -2.0f, 1.5f,
+               //b1
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f
+            }),
+            getValues<T>({   //b0
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f,
+                //b1
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f
+            })
+        },
+        {
+            "4d",
+            ov::PartialShape{2, 3, 2, 4},
+            getValues<T>({   //b0b0
+                -0.5f, 2.0f, 0.5f, 1.0f,
+                3.0f, 4.0f, 5.0f, 2.0f,
+                //b0b1
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+                //b0b2
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+                //b1b0
+                -0.5f, 2.0f, 0.5f, 1.0f,
+                3.0f, 4.0f, 5.0f, 2.0f,
+                //b1b1
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+                //b1b2
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+            }),
+            ov::PartialShape{2, 3, 3, 4},
+            getValues<T>({ //b0b0
+               1.5f, -1.0f, 0.5f, -0.5f,
+               1.0f, 0.0f, -0.5f, 1.0f,
+               0.5f, 0.5f, -2.0f, 1.5f,
+               //b0b1
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+               //b0b2
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+               //b1b0
+               1.5f, -1.0f, 0.5f, -0.5f,
+               1.0f, 0.0f, -0.5f, 1.0f,
+               0.5f, 0.5f, -2.0f, 1.5f,
+               //b1b1
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+               //b1b2
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+            }),
+            getValues<T>({   //b0b0
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f,
+                //b0b1
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f,
+                //b0b2
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f,
+                //b1b0
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f,
+                //b1b1
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f,
+                //b1b2
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f
+            })
+        },
+        {
+            "5d",
+            ov::PartialShape{2, 2, 1, 2, 4},
+            getValues<T>({   //b0b0b0
+                -0.5f, 2.0f, 0.5f, 1.0f,
+                3.0f, 4.0f, 5.0f, 2.0f,
+                //b1b1b0
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+                //b1b0b0
+                -0.5f, 2.0f, 0.5f, 1.0f,
+                3.0f, 4.0f, 5.0f, 2.0f,
+                //b1b1b0
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+            }),
+            ov::PartialShape{2, 2, 1, 3, 4},
+            getValues<T>({   //b0b0b0
+               1.5f, -1.0f, 0.5f, -0.5f,
+               1.0f, 0.0f, -0.5f, 1.0f,
+               0.5f, 0.5f, -2.0f, 1.5f,
+               //b0b1b0
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+               //b1b0b0
+               1.5f, -1.0f, 0.5f, -0.5f,
+               1.0f, 0.0f, -0.5f, 1.0f,
+               0.5f, 0.5f, -2.0f, 1.5f,
+               //b1b1b0
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+            }),
+            getValues<T>({
+                //b0b0b0
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f,
+                //b0b1b0
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f,
+                //b1b0b0
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f,
+                //b1b1b0
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f
+            })
+        },
+        {
+            "6d",
+            ov::PartialShape{2, 2, 1, 1, 2, 4},
+            getValues<T>({
+                //b0b0b0b0
+                -0.5f, 2.0f, 0.5f, 1.0f,
+                3.0f, 4.0f, 5.0f, 2.0f,
+                //b1b1b0b0
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+                //b1b0b0b0
+                -0.5f, 2.0f, 0.5f, 1.0f,
+                3.0f, 4.0f, 5.0f, 2.0f,
+                //b1b1b0b0
+                -1.5f, 3.0f, 1.5f, 2.0f,
+                4.0f, 5.0f, 6.0f, 3.0f,
+            }),
+            ov::PartialShape{2, 2, 1, 1, 3, 4},
+            getValues<T>({  //b0b0b0b0
+               1.5f, -1.0f, 0.5f, -0.5f,
+               1.0f, 0.0f, -0.5f, 1.0f,
+               0.5f, 0.5f, -2.0f, 1.5f,
+               //b0b1b0b0
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+               //b1b0b0b0
+               1.5f, -1.0f, 0.5f, -0.5f,
+               1.0f, 0.0f, -0.5f, 1.0f,
+               0.5f, 0.5f, -2.0f, 1.5f,
+               //b1b1b0b0
+               0.5f, -2.0f, 1.5f, -1.5f,
+               0.0f, 1.0f, -1.5f, 2.0f,
+               -0.5f, 1.5f, -1.0f, 0.5f,
+            }),
+            getValues<T>({
+                //b0b0b0b0
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f,
+                //b0b1b0b0
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f,
+                //b1b0b0b0
+                -3.0f, 0.25f, 1.25f,
+                2.0f, 2.5f, -3.5f,
+                //b1b1b0b0
+                -7.5f, 4.75f, 4.75f,
+                -3.5f, 2.0f, 1.0f
+            })
+        },
+    };
+
+    return params;
+}
+
+struct PrintToStringParamName {
+    template<class T>
+    std::string operator()(const testing::TestParamInfo<FCParam<T>>& param) {
+        std::stringstream buf;
+        const FCParam<T> p = param.param;
+
+        buf << p.name << "_";
+        buf << "input=" << p.input_shape << "_";
+        buf << "weights=" << p.weights_shape;
+        return buf.str();
+    }
+};
+
+template <typename T>
+struct fully_connected_new_shape_inference
+        : public ::testing::TestWithParam<FCParam<T> > {
+public:
+    void test() {
+        auto& engine = get_test_engine();
+
+        const FCParam<T> param = this->GetParam();
+        const auto data_type = type_to_data_type<T>::value;
+
+        auto plain_layout = format::bfyx;
+        auto target_layouts = layouts2D;
+        const auto input_rank = param.input_shape.rank().get_length();
+        switch (input_rank) {
+            case 2:
+            case 3:
+            case 4:
+                plain_layout = format::bfyx;
+                target_layouts = layouts2D;
+                break;
+            case 5:
+                plain_layout = format::bfzyx;
+                target_layouts = layouts3D;
+                break;
+            case 6:
+                plain_layout = format::bfwzyx;
+                target_layouts = layouts4D;
+                break;
+        }
+
+        for (const auto target_layout : target_layouts) {
+            const cldnn::layout input_data_layout{param.input_shape, data_type, plain_layout};
+            const auto input_data = engine.allocate_memory(input_data_layout);
+            const cldnn::layout weights_layout{param.weights_shape, data_type, plain_layout};
+            const auto weights_data = engine.allocate_memory(weights_layout);
+
+            set_values(input_data, param.input);
+            set_values(weights_data, param.weights);
+
+            const cldnn::topology topology{
+                    input_layout("input", input_data_layout),
+                    data("weights", weights_data),
+                    reorder("input_reordered", input_info("input"), target_layout, data_type),
+                    fully_connected("fc_blocked", input_info("input_reordered"), "weights", "", padding(), input_rank,
+                                    true),
+                    reorder("fc", input_info("fc_blocked"), plain_layout, data_type)
+            };
+
+            ExecutionConfig config;
+            config.set_property(ov::intel_gpu::optimize_data(true));
+            config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+            network network(engine, topology, config);
+            network.set_input_data("input", input_data);
+
+            const auto outputs = network.execute();
+            ASSERT_EQ(outputs.size(), size_t(1));
+            const auto output_mem = outputs.begin()->second.get_memory();
+            const cldnn::mem_lock<T> output_ptr(output_mem, get_test_stream());
+            ASSERT_EQ(param.expected.size(), output_ptr.size());
+            for (size_t i = 0; i < param.expected.size(); ++i) {
+                ASSERT_NEAR(param.expected[i], output_ptr[i], getError<T>())
+                    << i << " " << to_string(target_layout);
+            }
+        }
+    }
+};
+
+using f32 = fully_connected_new_shape_inference<float>;
+TEST_P(f32, layouts) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+INSTANTIATE_TEST_SUITE_P(
+        fully_connected_new_shape_inference,
+        f32,
+        ::testing::ValuesIn(getFCParams<float>()),
+        PrintToStringParamName()
+);
+
+using f16 = fully_connected_new_shape_inference<half_t>;
+TEST_P(f16, layouts) {
+    ASSERT_NO_FATAL_FAILURE(test());
+}
+INSTANTIATE_TEST_SUITE_P(
+        fully_connected_new_shape_inference,
+        f16,
+        ::testing::ValuesIn(getFCParams<half_t>()),
+        PrintToStringParamName()
+);
+
+};  // namespace
