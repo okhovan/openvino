@@ -315,7 +315,9 @@ std::shared_ptr<cldnn::program> Program::BuildProgram(const std::vector<std::sha
     cldnn::build_options options;
 
     for (const auto& op : ops) {
-        if (op->is_dynamic()) {
+        if (op->is_dynamic()
+            // uncomment for MatMul new_shape_inference
+            /*|| strncmp(op->get_type_name(), "MatMul", 6) == 0*/) {
             allow_new_shape_infer = true;
             break;
         }
