@@ -229,6 +229,12 @@ cldnn::format from_data_layout(kernel_selector::data_layout l) {
             return cldnn::format::b_fs_yx_32fp;
         case kernel_selector::data_layout::bfzyx:
             return cldnn::format::bfzyx;
+        case kernel_selector::data_layout::b_fs_zyx_fsv16:
+            return format::b_fs_zyx_fsv16;
+        case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv16:
+            return format::bs_fs_zyx_bsv16_fsv16;
+        case kernel_selector::data_layout::bs_fs_zyx_bsv16_fsv32:
+            return format::bs_fs_zyx_bsv16_fsv32;
         case kernel_selector::data_layout::fs_b_yx_fsv32:
             return cldnn::format::fs_b_yx_fsv32;
         case kernel_selector::data_layout::bfwzyx:
