@@ -75,6 +75,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
     validate_inputs_count(op, {2});
     auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
+    const auto new_shape_infer = p.use_new_shape_infer();
 
     auto shape_a = op->get_input_partial_shape(0);
     auto shape_b = op->get_input_partial_shape(1);
@@ -133,11 +134,12 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
                                              "",
                                              cldnn::element_type_to_data_type(op->get_output_element_type(0)),
                                              cldnn::padding(),
-                                             shape_a.size());
+                                             new_shape_infer ? shape_a_aligned.size() : shape_a.size(),
+                                             new_shape_infer);
 
         p.add_primitive(*op, fcPrim);
 
-        if (shape_a_aligned.size() > 3 && !p.use_new_shape_infer()) {
+        if (shape_a_aligned.size() > 3 && !new_shape_infer) {
             auto lastLayerName = layerName;
             auto outReshapeName = layerName + "_cldnn_out_reshape";
 
@@ -235,7 +237,7 @@ static void CreateMatMulOp(Program& p, const std::shared_ptr<ngraph::op::v0::Mat
 
         p.add_primitive(*op, gemmPrim);
 
-        if (!p.use_new_shape_infer()) {
+        if (!new_shape_infer) {
             auto outDims = op->get_output_shape(0);
             auto outDimsN = outDims.size();
             // Reshape output if gemm specific shape does not match default one
