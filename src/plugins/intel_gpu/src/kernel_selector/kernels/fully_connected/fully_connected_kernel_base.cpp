@@ -180,6 +180,10 @@ bool FullyConnectedKernelBase::Validate(const Params& p, const optional_params&)
             return false;
     }
 
+    if (params.new_shape_infer) {
+        return false;
+    }
+
     return true;
 }
 
