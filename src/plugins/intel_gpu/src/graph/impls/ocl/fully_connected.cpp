@@ -47,81 +47,103 @@ protected:
 public:
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param) {
         const auto& primitive = impl_param.typed_desc<fully_connected>();
+        const auto& program = impl_param.get_program();
+        const auto allow_new_shape_infer = primitive->new_shape_infer; //program.get_options().get<build_option_type::allow_new_shape_infer>()->enabled();
+        auto updated_impl_param = impl_param;
+        kernel_selector::fully_connected_params params;
+        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(
+                program);
 
-        auto get_fc_input_layouts = [primitive](const std::vector<layout>& input_layouts) {
-            auto reshape_to_2d = [](const ov::PartialShape& shape, const ov::Dimension& feature) {
-                if (shape.is_static()) {
-                    auto static_shape = shape.to_shape();
-                    size_t total = std::accumulate(static_shape.begin(), static_shape.end(), 1, std::multiplies<size_t>());
-                    auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape.back());
-                    return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
-                } else {
-                    return ov::PartialShape{ ov::Dimension::dynamic(), feature };
+        if (allow_new_shape_infer) {
+            const auto rank = updated_impl_param.output_layouts[0].get_partial_shape().rank().get_length();
+            if (rank > 5) {
+                params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, 1, 1, true);
+            } else {
+                params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
+            }
+
+            params.input_shape = updated_impl_param.input_layouts[0].get_partial_shape();
+            params.weights_shape = updated_impl_param.input_layouts[1].get_partial_shape();
+            params.output_shape = updated_impl_param.output_layouts[0].get_partial_shape();
+        } else {
+            auto get_fc_input_layouts = [primitive](const std::vector<layout> &input_layouts) {
+                auto reshape_to_2d = [](const ov::PartialShape &shape, const ov::Dimension &feature) {
+                    if (shape.is_static()) {
+                        auto static_shape = shape.to_shape();
+                        size_t total = std::accumulate(static_shape.begin(), static_shape.end(), 1,
+                                                       std::multiplies<size_t>());
+                        auto dim = feature.is_static() ? feature.get_length()
+                                                       : static_cast<int64_t>(static_shape.back());
+                        return ov::PartialShape{static_cast<int64_t>(total) / dim, dim};
+                    } else {
+                        return ov::PartialShape{ov::Dimension::dynamic(), feature};
+                    }
+                };
+
+                auto input0_layout = input_layouts[0];
+                auto input1_layout = input_layouts[1];
+
+                auto input0_pshape = input0_layout.get_partial_shape();
+                auto input1_pshape = input1_layout.get_partial_shape();
+
+                ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
+
+                if (primitive->input_size > 3) {
+                    input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature));
                 }
+                if (input1_pshape.size() != 2) {
+                    input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature));
+                }
+
+                std::vector<layout> layouts{input0_layout, input1_layout};
+                return layouts;
             };
 
-            auto input0_layout = input_layouts[0];
-            auto input1_layout = input_layouts[1];
+            auto get_fc_output_layout = [primitive](const std::vector<layout> &input_layouts,
+                                                    const layout &output_layout) {
+                auto updated_out_layout = output_layout;
 
-            auto input0_pshape = input0_layout.get_partial_shape();
-            auto input1_pshape = input1_layout.get_partial_shape();
+                auto input0_pshape = input_layouts[0].get_partial_shape();
+                auto input1_pshape = input_layouts[1].get_partial_shape();
+                ov::PartialShape updated_out_pshape{input0_pshape[0], input1_pshape[0]};
 
-            ov::Dimension feature = input0_pshape[std::min(primitive->input_size, static_cast<size_t>(4)) - 1ul];
+                if (primitive->input_size == 3) {
+                    updated_out_pshape = {input0_pshape[0], input0_pshape[1], input1_pshape[0]};
+                }
+                updated_out_layout.set_partial_shape(updated_out_pshape);
 
-            if (primitive->input_size > 3) {
-                input0_layout.set_partial_shape(reshape_to_2d(input0_pshape, feature));
+                return updated_out_layout;
+            };
+
+            const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts);
+            updated_impl_param.input_layouts[0] = input_layouts[0];
+            updated_impl_param.input_layouts[1] = input_layouts[1];
+            updated_impl_param.weights_layout = input_layouts[1];
+
+            updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
+
+            params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
+            optional_params.allowInputReordering = true;
+
+            if (primitive->input_size != 3)
+                params.outputs = {params.outputs[0].FlattenFeatureAndSpatials()};
+
+            bool is_quantized = true;
+            for (auto &input : impl_param.input_layouts)
+                is_quantized &= data_type_traits::is_quantized(input.data_type);
+
+            if (is_quantized) {
+                params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
+            } else {
+                params.quantization = kernel_selector::QuantizationType::NONE;
             }
-            if (input1_pshape.size() != 2) {
-                input1_layout.set_partial_shape(reshape_to_2d(input1_pshape, feature));
-            }
 
-            std::vector<layout> layouts{input0_layout, input1_layout};
-            return layouts;
-        };
-
-        auto get_fc_output_layout = [primitive](const std::vector<layout>& input_layouts, const layout& output_layout) {
-            auto updated_out_layout = output_layout;
-
-            auto input0_pshape = input_layouts[0].get_partial_shape();
-            auto input1_pshape = input_layouts[1].get_partial_shape();
-            ov::PartialShape updated_out_pshape {input0_pshape[0], input1_pshape[0]};
-
-            if (primitive->input_size == 3) {
-                updated_out_pshape = { input0_pshape[0], input0_pshape[1], input1_pshape[0] };
-            }
-            updated_out_layout.set_partial_shape(updated_out_pshape);
-
-            return updated_out_layout;
-        };
-
-        auto updated_impl_param = impl_param;
-
-        const auto input_layouts = get_fc_input_layouts(impl_param.input_layouts);
-        updated_impl_param.input_layouts[0] = input_layouts[0];
-        updated_impl_param.input_layouts[1] = input_layouts[1];
-        updated_impl_param.weights_layout = input_layouts[1];
-
-        updated_impl_param.output_layouts[0] = get_fc_output_layout(input_layouts, impl_param.get_output_layout());
-
-        const auto& progam = impl_param.get_program();
-        auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param);
-        auto optional_params = get_default_weights_bias_optional_params<kernel_selector::fully_connected_optional_params>(progam);
-        optional_params.allowInputReordering = true;
-
-        if (primitive->input_size != 3)
-            params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
-
-        bool is_quantized = true;
-        for (auto& input : impl_param.input_layouts)
-            is_quantized &= data_type_traits::is_quantized(input.data_type);
-
-        if (is_quantized) {
-            params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
-        } else {
-            params.quantization = kernel_selector::QuantizationType::NONE;
+            optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(program.get_engine(),
+                                                                                       program.get_id(), true);
         }
 
-        optional_params.tuningParams.runner = std::make_shared<gpu::kernel_runner>(progam.get_engine(), progam.get_id(), true);
+        params.new_shape_infer = allow_new_shape_infer;
+
         return {params, optional_params};
     }
 
@@ -163,6 +185,26 @@ attach_fully_connected_impl::attach_fully_connected_impl() {
         std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
         std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+
+//  uncomment for MatMul new_shape_inference
+        std::make_tuple(data_types::f16, format::bfzyx),
+        std::make_tuple(data_types::f32, format::bfzyx),
+        std::make_tuple(data_types::f16, format::bfwzyx),
+        std::make_tuple(data_types::f32, format::bfwzyx),
+
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv16),
+        std::make_tuple(data_types::f32, format::b_fs_yx_fsv32),
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv16),
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv16_fsv32),
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv16),
+        std::make_tuple(data_types::f32, format::bs_fs_yx_bsv32_fsv32),
+
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv16),
+        std::make_tuple(data_types::f32, format::b_fs_zyx_fsv32),
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv16),
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv16_fsv32),
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv16),
+        std::make_tuple(data_types::f32, format::bs_fs_zyx_bsv32_fsv32),
     });
 }
 
