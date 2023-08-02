@@ -100,6 +100,8 @@ struct border_impl : typed_primitive_impl_ocl<border> {
                 OPENVINO_ASSERT(false, "[GPU] Encountered unhandled enum case: PadMode during translation to kernel selector enumeration.");
         }
 
+        params.allow_negative_pad = primitive->allow_negative_pad;
+
         return {params, optional_params};
     }
 

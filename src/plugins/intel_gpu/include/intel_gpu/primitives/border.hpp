@@ -10,17 +10,17 @@ namespace cldnn {
 
 /// @brief Adds border around input.
 ///
-/// @details Applies border of specified type around input data. The size of output data is increased
+/// @details Applies border of specified type around input data. The size of output data is increased or decreased
 ///          by @c pads_begin and by @c pads_end.
 /// @n
 /// @n@b Requirements:
-/// @n - @c pads_begin and @c pads_end must be non-negative on all dimensions and compatible
+/// @n - @c pads_begin and @c pads_end must be compatible
 ///      with size of input (describe the same dimensions).
 /// @n - For @c PadMode equal to @c SYMMETRIC, @c pads_begin and @c pads_end
 ///      must be lower than or equal to size of input on corresponding dimension (for all dimensions)
 /// @n - For @c PadMode equal to @c REFLECT, @c pads_begin and @c pads_end
 ///      must be lower than size of input on corresponding dimension (for all dimensions)
-/// @n Breaking any of this conditions will cause exeption throw.
+/// @n Breaking any of this conditions will cause exception throw.
 struct border : public primitive_base<border> {
     CLDNN_DECLARE_PRIMITIVE(border)
 
@@ -40,12 +40,13 @@ struct border : public primitive_base<border> {
     /// @param id                       An identifier of new primitive.
     /// @param inputs                   An identifier list of primitives which are not constant input.
     /// @param non_constant_input_mask  Bit mask whether inputs are non-constant or not
-    /// @param pads_begin               Sizes of border that needs to be added from left
+    /// @param pads_begin               Sizes of border that needs to be added (or removed) from left
     ///                                 (in X dimension) and from top (in Y dimension).
-    /// @param pads_end                 Sizes of border that needs to be added from right
+    /// @param pads_end                 Sizes of border that needs to be added (or removed) from right
     ///                                 (in X dimension) and from bottom (in Y dimension).
     /// @param pad_mode                 Value of elements which is used for paddings
     /// @param pad_value                Pad's value in case of PadMode::CONSTANT
+    /// @param allow_negative_pad       Allow negative values in pads_begin and pad_end to remove borders
     /// @param output_padding           Optional padding for output from primitive.
     border(const primitive_id& id,
            const std::vector<input_info>& inputs,
@@ -54,12 +55,14 @@ struct border : public primitive_base<border> {
            const ov::CoordinateDiff& pads_end = {},
            const ov::op::PadMode pad_mode = ov::op::PadMode::CONSTANT,
            const float pad_value = 0.0f,
+           const bool allow_negative_pad = false,
            const padding& output_padding = padding())
         : primitive_base(id, inputs, {output_padding}),
           pads_begin(pads_begin),
           pads_end(pads_end),
           pad_mode(pad_mode),
           pad_value(pad_value),
+          allow_negative_pad(allow_negative_pad),
           non_constant_input_mask(non_constant_input_mask) {}
 
     /// @brief Sizes of border that needs to be added from left (in X dimension) and from top (in Y dimension).
@@ -70,6 +73,8 @@ struct border : public primitive_base<border> {
     ov::op::PadMode pad_mode;
     /// @brief Border value that is used in constant mode.
     float pad_value;
+    /// @brief Allow negative values in pads_begin and pad_end.
+    bool allow_negative_pad;
     /// @brief Bit mask whether input is non-constant or not. Position is defined at PAD_NON_CONST_INPUT.
     int32_t non_constant_input_mask;
 
