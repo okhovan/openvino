@@ -82,4 +82,25 @@ INSTANTIATE_TEST_SUITE_P(smoke_Pad4D,
                                           testing::Values(ov::test::utils::DEVICE_GPU)),
                          PadLayerTest::getTestCaseName);
 
+// ***** Pad-12 tests *********************************************************************************
+
+const std::vector<std::vector<int64_t>> negative_padsBegin2D = {{-1, -1}};
+const std::vector<std::vector<int64_t>> negative_padsEnd2D   = {{-1, -1}};
+
+
+INSTANTIATE_TEST_SUITE_P(smoke_Pad2DConst,
+                         PadLayerTest12,
+                         testing::Combine(testing::ValuesIn(negative_padsBegin2D),
+                                          testing::ValuesIn(negative_padsEnd2D),
+                                          testing::ValuesIn(argPadValue),
+                                          testing::Values(ngraph::helpers::PadMode::CONSTANT),
+                                          testing::ValuesIn(netPrecisions),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Precision::UNSPECIFIED),
+                                          testing::Values(InferenceEngine::Layout::ANY),
+                                          testing::Values(std::vector<size_t>{13, 5}),
+                                          testing::Values(ov::test::utils::DEVICE_GPU)),
+                         PadLayerTest::getTestCaseName);
+
+
 }  // namespace
