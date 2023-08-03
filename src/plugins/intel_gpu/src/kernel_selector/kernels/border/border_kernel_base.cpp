@@ -38,7 +38,6 @@ JitConstants BorderKernelBase::GetJitConstants(const border_params& params) cons
     }
 
     jit.AddConstants({MakeJitConstant(toString(params.b_type), "")});
-    
     jit.AddConstants({MakeJitConstant("NEGATIVE_PAD", params.allow_negative_pad)});
 
     return jit;

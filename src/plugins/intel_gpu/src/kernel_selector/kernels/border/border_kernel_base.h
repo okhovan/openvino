@@ -12,8 +12,8 @@ namespace kernel_selector {
 // border_params
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 struct border_params : public base_params {
-    DimTensor<> lt_sizes;
-    DimTensor<> rb_sizes;
+    DimTensor<int32_t> lt_sizes;
+    DimTensor<int32_t> rb_sizes;
     BorderType b_type;
     float border_value;
 
