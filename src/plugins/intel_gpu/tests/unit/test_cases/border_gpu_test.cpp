@@ -1697,6 +1697,9 @@ TEST(border_gpu, basic_bfyx_negative_pad_dynamic) {
     auto output = outputs.at("border").get_memory();
     cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
+    const auto expected_size = out_size_b * out_size_f * out_size_y * out_size_x;
+    ASSERT_EQ(output_ptr.size(), expected_size);
+
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
             for (auto y = 0; y < out_size_y; ++y) {     // Y
@@ -1786,6 +1789,9 @@ TEST(border_gpu, basic_bfyx_2x1x2x3_1x2x3x4_border_constant_negative_pad_input) 
 
     const auto output = outputs.at("output").get_memory();
     const cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    const auto expected_size = out_size_b * out_size_f * out_size_y * out_size_x;
+    ASSERT_EQ(output_ptr.size(), expected_size);
 
     for (auto b = 0; b < out_size_b; ++b) {             // B
         for (auto f = 0; f < out_size_f; ++f) {         // F
