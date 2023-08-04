@@ -122,7 +122,8 @@ protected:
         }
 
         auto paramOuts = helpers::convert2OutputVector(helpers::castOps2Nodes<ov::op::v0::Parameter>(functionParams));
-        auto pad = std::make_shared<ngraph::opset3::Pad>(paramOuts[0], pads_begin, pads_end, arg_pad_value, padMode);
+        //auto pad = std::make_shared<ngraph::opset3::Pad>(paramOuts[0], pads_begin, pads_end, arg_pad_value, padMode);
+        auto pad = std::make_shared<ov::op::v12::Pad>(paramOuts[0], pads_begin, pads_end, arg_pad_value, padMode);
 
         ngraph::ResultVector results;
         for (size_t i = 0; i < pad->get_output_size(); ++i) {
@@ -198,8 +199,12 @@ const std::vector<InputShape> inputShapesDynamic2D = {
     {{-1, -1}, {{5, 36}, {3, 16}}}
 };
 
-const std::vector<std::vector<int64_t>> padsBegin2D_Smoke = {{0, 1}, {1, 2}};
-const std::vector<std::vector<int64_t>> padsEnd2D_Smoke   = {{1, 2}, {2, 1}};
+const std::vector<std::vector<int64_t>> padsBegin2D_Smoke = {{0, 1}, {1, 2}, {-1, 8}, {1, -3}};
+const std::vector<std::vector<int64_t>> padsEnd2D_Smoke   = {{1, 2}, {2, 1}, {1, -10}, {-2, -2}};
+
+// For debug only
+//const std::vector<std::vector<int64_t>> padsBegin2D_Smoke = {{-1, 8}, {1, -3}};
+//const std::vector<std::vector<int64_t>> padsEnd2D_Smoke   = {{1, -10}, {-2, -2}};
 
 INSTANTIATE_TEST_SUITE_P(
         smoke_GPUPadDynamic2DConst,
