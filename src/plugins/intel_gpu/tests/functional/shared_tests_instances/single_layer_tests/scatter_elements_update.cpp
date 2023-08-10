@@ -44,4 +44,16 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::ValuesIn(idxPrecisions),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ScatterElementsUpdateLayerTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_ScatterEltsUpdate12,
+    ScatterElementsUpdate12LayerTest,
+    ::testing::Combine(::testing::ValuesIn(ScatterElementsUpdateLayerTest::combineShapes(axesShapeInShape)),
+                       ::testing::ValuesIn(idxValue),
+                       ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::SUM),
+                       ::testing::Values(true),
+                       ::testing::ValuesIn(inputPrecisions),
+                       ::testing::ValuesIn(idxPrecisions),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    ScatterElementsUpdate12LayerTest::getTestCaseName);
 }  // namespace

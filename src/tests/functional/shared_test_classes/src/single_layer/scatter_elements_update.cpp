@@ -5,6 +5,9 @@
 #include "ngraph_functions/builders.hpp"
 #include "shared_test_classes/single_layer/scatter_elements_update.hpp"
 
+#include "openvino/op/scatter_elements_update.hpp"
+using ov::op::operator<<;
+
 namespace LayerTestsDefinitions {
 
 std::string ScatterElementsUpdateLayerTest::getTestCaseName(const testing::TestParamInfo<scatterElementsUpdateParamsTuple> &obj) {
@@ -56,6 +59,53 @@ void ScatterElementsUpdateLayerTest::SetUp() {
     paramVector.push_back(updateParams);
     auto paramVectorOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
     auto s2d = ngraph::builder::makeScatterElementsUpdate(paramVectorOuts[0], idxPrc, indicesShape, indicesValue, paramVectorOuts[1], axis);
+    ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
+    function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterElementsUpdate");
+}
+
+std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::TestParamInfo<scatterElementsUpdate12ParamsTuple> &obj) {
+    axisShapeInShape shapeDescript;
+    InferenceEngine::SizeVector indicesValue;
+    ov::op::v12::ScatterElementsUpdate::Reduction reduceMode;
+    bool useInitVal;
+    InferenceEngine::Precision inputPrecision;
+    InferenceEngine::Precision indicesPrecision;
+    std::string targetName;
+    std::tie(shapeDescript, indicesValue, reduceMode, useInitVal, inputPrecision, indicesPrecision, targetName) = obj.param;
+    std::ostringstream result;
+    result << "InputShape=" << ov::test::utils::vec2str(std::get<0>(shapeDescript)) << "_";
+    result << "IndicesShape=" << ov::test::utils::vec2str(std::get<1>(shapeDescript)) << "_";
+    result << "Axis=" << std::get<2>(shapeDescript) << "_";
+    result << "ReduceMode=" << reduceMode << "_";
+    result << "UseInitVal=" << useInitVal << "_";
+    result << "inPrc=" << inputPrecision.name() << "_";
+    result << "idxPrc=" << indicesPrecision.name() << "_";
+    result << "targetDevice=" << targetName << "_";
+    return result.str();
+}
+
+void ScatterElementsUpdate12LayerTest::SetUp() {
+    InferenceEngine::SizeVector inShape;
+    InferenceEngine::SizeVector indicesShape;
+    int axis;
+    ov::op::v12::ScatterElementsUpdate::Reduction reduceMode;
+    bool useInitVal;
+    axisShapeInShape shapeDescript;
+    InferenceEngine::SizeVector indicesValue;
+    InferenceEngine::Precision inputPrecision;
+    InferenceEngine::Precision indicesPrecision;
+    std::tie(shapeDescript, indicesValue, reduceMode, useInitVal, inputPrecision, indicesPrecision, targetDevice) = this->GetParam();
+    std::tie(inShape, indicesShape, axis) = shapeDescript;
+    auto inPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(inputPrecision);
+    auto idxPrc = FuncTestUtils::PrecisionUtils::convertIE2nGraphPrc(indicesPrecision);
+    ngraph::ParameterVector paramVector;
+    auto inputParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(inShape));
+    paramVector.push_back(inputParams);
+    auto updateParams = std::make_shared<ngraph::opset1::Parameter>(inPrc, ngraph::Shape(indicesShape));
+    paramVector.push_back(updateParams);
+    auto paramVectorOuts = ngraph::helpers::convert2OutputVector(ngraph::helpers::castOps2Nodes<ngraph::op::Parameter>(paramVector));
+    auto s2d = ngraph::builder::makeScatterElementsUpdate(paramVectorOuts[0], idxPrc, indicesShape, indicesValue,
+                                                          paramVectorOuts[1], axis, reduceMode, useInitVal);
     ngraph::ResultVector results{std::make_shared<ngraph::opset1::Result>(s2d)};
     function = std::make_shared<ngraph::Function>(results, paramVector, "ScatterElementsUpdate");
 }

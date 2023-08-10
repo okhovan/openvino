@@ -490,6 +490,14 @@ std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Nod
                                                         const std::vector<size_t>& indices,
                                                         const ngraph::Output<Node> &update,
                                                         int axis);
+std::shared_ptr<ngraph::Node> makeScatterElementsUpdate(const ngraph::Output<Node> &in,
+                                                        const element::Type& indicesType,
+                                                        const std::vector<size_t>& indicesShape,
+                                                        const std::vector<size_t>& indices,
+                                                        const ngraph::Output<Node> &update,
+                                                        int axis,
+                                                        ov::op::v12::ScatterElementsUpdate::Reduction reduceMode,
+                                                        bool useInitVal);
 
 std::shared_ptr<ngraph::Node> makeScatterNDUpdate(const ngraph::Output<Node> &in,
                                                   const element::Type& indicesType,
