@@ -22,6 +22,31 @@
     #error "OUTPUT_DIMS is supposed to be same as INPUT2_DIMS"
 #endif
 
+#ifdef REDUCE_MODE
+    #define SUM 1
+    #define PROD 2
+    #define MIN 3
+    #define MAX 4
+    #define MEAN 5
+
+    inline INPUT2_TYPE FUNC(reduce)(INPUT2_TYPE a, INPUT2_TYPE b)
+    {
+    #if REDUCE_MODE == SUM
+        return a + b;
+    #elif REDUCE_MODE == PROD
+        return a * b;
+    #elif REDUCE_MODE == MIN
+        return min(a, b);
+    #elif REDUCE_MODE == MAX
+        return max(a, b);
+    #elif REDUCE_MODE == MEAN
+        return (a + b) / (INPUT2_TYPE)(2);
+    #else
+        #error "Invalid REDUCE_MODE value"
+    #endif
+    }
+#endif
+
 KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
                    const __global INPUT1_TYPE* indices,
                    const __global INPUT2_TYPE* updates,
@@ -130,15 +155,28 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
 
     const uint updates_idx = GET_UPDATES_INDEX(IDX_ORDER);
-    INPUT2_TYPE val = updates[(int)updates_idx];
+    INPUT2_TYPE update_val = updates[(int)updates_idx];
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
     #else
+        #ifdef REDUCE_MODE
+            INPUT2_TYPE val = FUNC_CALL(reduce)(output[output_idx], update_val);
+        #else
+            INPUT2_TYPE val = update_val;
+        #endif
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
 #endif
 }
+
+#ifdef REDUCE_MODE
+    #undef SUM
+    #undef PROD
+    #undef MIN
+    #undef MAX
+    #undef MEAN
+#endif
 
 #undef GET_INDICES_INDEX
 #undef GET_UPDATES_INDEX

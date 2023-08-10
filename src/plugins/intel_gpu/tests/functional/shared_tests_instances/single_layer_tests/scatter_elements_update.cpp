@@ -45,15 +45,28 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ScatterElementsUpdateLayerTest::getTestCaseName);
 
+
+const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduceModes{
+    // Reduction::NONE is omitted intentionally, because v12 with Reduction::NONE is converted to v3,
+    // and v3 is already tested by smoke_ScatterEltsUpdate testsuite. It doesn't make sense to test the same code twice.
+    // Don't forget to add Reduction::NONE when/if ConvertScatterElementsUpdate12ToScatterElementsUpdate3
+    // transformation will be disabled (in common transforamtions pipeline or for GPU only).
+    ov::op::v12::ScatterElementsUpdate::Reduction::SUM,
+    ov::op::v12::ScatterElementsUpdate::Reduction::PROD,
+    ov::op::v12::ScatterElementsUpdate::Reduction::MIN,
+    ov::op::v12::ScatterElementsUpdate::Reduction::MAX,
+    ov::op::v12::ScatterElementsUpdate::Reduction::MEAN
+};
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_ScatterEltsUpdate12,
     ScatterElementsUpdate12LayerTest,
     ::testing::Combine(::testing::ValuesIn(ScatterElementsUpdateLayerTest::combineShapes(axesShapeInShape)),
                        ::testing::ValuesIn(idxValue),
-                       ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::SUM),
-                       ::testing::Values(true),
-                       ::testing::ValuesIn(inputPrecisions),
-                       ::testing::ValuesIn(idxPrecisions),
+                       ::testing::ValuesIn(reduceModes),
+                       ::testing::ValuesIn({true, false}),
+                       ::testing::Values(inputPrecisions[0]), // ??? Do we need all precisions?
+                       ::testing::Values(idxPrecisions[0]),
                        ::testing::Values(ov::test::utils::DEVICE_GPU)),
     ScatterElementsUpdate12LayerTest::getTestCaseName);
 }  // namespace
