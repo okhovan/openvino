@@ -135,7 +135,9 @@ JitConstants ScatterElementsUpdateKernelRef::GetJitConstants(const scatter_eleme
 
     if (params.mode != ScatterUpdateReduction::NONE) {
         jit.AddConstant(MakeJitConstant("REDUCE_MODE", static_cast<int>(params.mode)));
-        jit.AddConstant(MakeJitConstant("USE_INIT_VAL", params.use_init_val));
+        if (params.use_init_val) {
+            jit.AddConstant(MakeJitConstant("USE_INIT_VAL", 1));
+        }
     }
 
     if (!params.fused_ops.empty()) {
