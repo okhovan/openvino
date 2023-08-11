@@ -186,19 +186,19 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
     const uint output_idx = GET_OUTPUT_INDEX(ORDER);
 
     const uint updates_idx = GET_UPDATES_INDEX(IDX_ORDER);
-    INPUT2_TYPE update_val = updates[(int)updates_idx];
+    INPUT2_TYPE val = updates[(int)updates_idx];
+
+    #ifdef REDUCE_MODE
+        #if USE_INIT_VAL == 0
+            output[output_idx] = REDUCTION_NEUTRAL_VALUE;
+        #endif
+        val = FUNC_CALL(reduce)(output[output_idx], val);
+    #endif
+
     #if HAS_FUSED_OPS
         FUSED_OPS_SECOND_KERNEL;
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
     #else
-        #ifdef REDUCE_MODE
-            #if USE_INIT_VAL == 0
-                output[output_idx] = REDUCTION_NEUTRAL_VALUE;
-            #endif
-            INPUT2_TYPE val = FUNC_CALL(reduce)(output[output_idx], update_val);
-        #else
-            INPUT2_TYPE val = update_val;
-        #endif
         output[output_idx] = ACTIVATION(val, ACTIVATION_PARAMS);
     #endif
 #endif
