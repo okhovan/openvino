@@ -58,11 +58,16 @@ const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduceModes{
     ov::op::v12::ScatterElementsUpdate::Reduction::MEAN
 };
 
+const std::vector<std::vector<int64_t>> idxWithNegativeValues = {
+    {1, 0, 4, 6, 2, 3, 7, 5},
+    {-1, 0, -4, -6, -2, -3, -7, -5},
+};
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_ScatterEltsUpdate12,
     ScatterElementsUpdate12LayerTest,
     ::testing::Combine(::testing::ValuesIn(ScatterElementsUpdateLayerTest::combineShapes(axesShapeInShape)),
-                       ::testing::ValuesIn(idxValue),
+                       ::testing::ValuesIn(idxWithNegativeValues),
                        ::testing::ValuesIn(reduceModes),
                        ::testing::ValuesIn({true, false}),
                        ::testing::Values(inputPrecisions[0]), // ??? Do we need all precisions?

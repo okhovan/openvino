@@ -26,7 +26,7 @@ using scatterElementsUpdateParamsTuple = typename std::tuple<
 
 using scatterElementsUpdate12ParamsTuple = typename std::tuple<
         axisShapeInShape,                  // shape description
-        std::vector<size_t>,               // indices value
+        std::vector<int64_t>,              // indices value
         ov::op::v12::ScatterElementsUpdate::Reduction,  // Reduce mode
         bool,                              // Use init value
         InferenceEngine::Precision,        // Network precision

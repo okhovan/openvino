@@ -65,7 +65,7 @@ void ScatterElementsUpdateLayerTest::SetUp() {
 
 std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::TestParamInfo<scatterElementsUpdate12ParamsTuple> &obj) {
     axisShapeInShape shapeDescript;
-    InferenceEngine::SizeVector indicesValue;
+    std::vector<int64_t> indicesValue;
     ov::op::v12::ScatterElementsUpdate::Reduction reduceMode;
     bool useInitVal;
     InferenceEngine::Precision inputPrecision;
@@ -78,6 +78,7 @@ std::string ScatterElementsUpdate12LayerTest::getTestCaseName(const testing::Tes
     result << "Axis=" << std::get<2>(shapeDescript) << "_";
     result << "ReduceMode=" << reduceMode << "_";
     result << "UseInitVal=" << useInitVal << "_";
+    result << "Indices=" << ov::test::utils::vec2str(indicesValue) << "_";
     result << "inPrc=" << inputPrecision.name() << "_";
     result << "idxPrc=" << indicesPrecision.name() << "_";
     result << "targetDevice=" << targetName << "_";
@@ -91,7 +92,7 @@ void ScatterElementsUpdate12LayerTest::SetUp() {
     ov::op::v12::ScatterElementsUpdate::Reduction reduceMode;
     bool useInitVal;
     axisShapeInShape shapeDescript;
-    InferenceEngine::SizeVector indicesValue;
+    std::vector<int64_t> indicesValue;
     InferenceEngine::Precision inputPrecision;
     InferenceEngine::Precision indicesPrecision;
     std::tie(shapeDescript, indicesValue, reduceMode, useInitVal, inputPrecision, indicesPrecision, targetDevice) = this->GetParam();

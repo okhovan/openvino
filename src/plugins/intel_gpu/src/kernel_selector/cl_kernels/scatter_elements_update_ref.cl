@@ -133,38 +133,53 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
 
     #if OUTPUT_DIMS == 4
     #if     AXIS_VALUE == 0
+        if (index < 0) { index += INPUT0_BATCH_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint f = idx_f; const uint b = index;
     #elif   AXIS_VALUE == 1
+        if (index < 0) { index += INPUT0_FEATURE_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint f = index; const uint b = idx_b;
     #elif   AXIS_VALUE == 2
+        if (index < 0) { index += INPUT0_SIZE_Y; }
         const uint x = idx_x; const uint y = index; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 3
+        if (index < 0) { index += INPUT0_SIZE_X; }
         const uint x = index; const uint y = idx_y; const uint f = idx_f; const uint b = idx_b;
     #endif  // AXIS_VALUE
     #elif OUTPUT_DIMS == 5
     #if     AXIS_VALUE == 0
+        if (index < 0) { index += INPUT0_BATCH_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = index;
     #elif   AXIS_VALUE == 1
+        if (index < 0) { index += INPUT0_FEATURE_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint f = index; const uint b = idx_b;
     #elif   AXIS_VALUE == 2
+        if (index < 0) { index += INPUT0_SIZE_Z; }
         const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 3
+        if (index < 0) { index += INPUT0_SIZE_Y; }
         const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 4
+        if (index < 0) { index += INPUT0_SIZE_X; }
         const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint f = idx_f; const uint b = idx_b;
     #endif  // AXIS_VALUE
     #elif OUTPUT_DIMS == 6
     #if     AXIS_VALUE == 0
+        if (index < 0) { index += INPUT0_BATCH_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = index;
     #elif   AXIS_VALUE == 1
+        if (index < 0) { index += INPUT0_FEATURE_NUM; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = index; const uint b = idx_b;
     #elif   AXIS_VALUE == 2
+        if (index < 0) { index += INPUT0_SIZE_W; }
         const uint x = idx_x; const uint y = idx_y; const uint z = idx_z; const uint w = index; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 3
+        if (index < 0) { index += INPUT0_SIZE_Z; }
         const uint x = idx_x; const uint y = idx_y; const uint z = index; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 4
+        if (index < 0) { index += INPUT0_SIZE_Y; }
         const uint x = idx_x; const uint y = index; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
     #elif   AXIS_VALUE == 5
+        if (index < 0) { index += INPUT0_SIZE_X; }
         const uint x = index; const uint y = idx_y; const uint z = idx_z; const uint w = idx_w; const uint f = idx_f; const uint b = idx_b;
     #endif  // AXIS_VALUE
     #endif
