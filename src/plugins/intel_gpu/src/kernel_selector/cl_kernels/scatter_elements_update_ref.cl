@@ -29,7 +29,7 @@
     #define MAX 4
     #define MEAN 5
 
-    #ifndef USE_INIT_VAL
+    #if USE_INIT_VAL == 0
         #if REDUCE_MODE == SUM
             #define REDUCTION_NEUTRAL_VALUE INPUT0_VAL_ZERO
         #elif REDUCE_MODE == PROD
@@ -56,7 +56,7 @@
     #elif REDUCE_MODE == MAX
         return max(a, b);
     #elif REDUCE_MODE == MEAN
-        return (a + b) / (INPUT2_TYPE)(2);
+        return (a + b) / (INPUT2_TYPE)(1 + USE_INIT_VAL);
     #else
         #error "Invalid REDUCE_MODE value"
     #endif
@@ -177,7 +177,7 @@ KERNEL(scatter_elements_update_ref)(const __global INPUT0_TYPE* data,
         output[output_idx] = TO_OUTPUT_TYPE(FUSED_OPS_RESULT_SECOND_KERNEL);
     #else
         #ifdef REDUCE_MODE
-            #ifndef USE_INIT_VAL
+            #if USE_INIT_VAL == 0
                 output[output_idx] = REDUCTION_NEUTRAL_VALUE;
             #endif
             INPUT2_TYPE val = FUNC_CALL(reduce)(output[output_idx], update_val);
