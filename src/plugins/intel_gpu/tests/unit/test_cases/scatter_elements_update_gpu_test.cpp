@@ -119,6 +119,14 @@ using ScatterElementsUpdateParamsWithFormat = std::tuple<
     format::type      // target (blocked) updates layout
 >;
 
+template<typename T, typename T_IND = int32_t>
+using ScatterElementsUpdateReduceParamsWithFormat = std::tuple<
+    ScatterElementsUpdateParams<T, T_IND>,
+    ScatterElementsUpdateOp::Reduction,
+    bool,             // use_init_value
+    format::type
+>;
+
 const std::vector<format::type> formats2D{
         format::bfyx,
         format::b_fs_yx_fsv16,
@@ -253,8 +261,24 @@ struct PrintToStringParamName {
             << "_targetUpdatesFormat=" << fmt_to_str(target_updates_format);
         return buf.str();
     }
+
+    template<typename T, typename T_IND>
+    std::string operator()(const testing::TestParamInfo<ScatterElementsUpdateReduceParamsWithFormat<T, T_IND> > &param) {
+        std::stringstream buf;
+        ScatterElementsUpdateParams<T, T_IND> p;
+        ScatterElementsUpdateOp::Reduction mode;
+        bool use_init_value;
+        format::type plain_format;
+        std::tie(p, mode, use_init_value, plain_format) = param.param;
+        buf << "_axis=" << p.axis
+            << "_mode=" << static_cast<int>(mode)
+            << "_use_init_value=" << use_init_value
+            << "_data=" << p.data_tensor.to_string()
+            << "_indices=" << p.indices_tensor.to_string()
+            << "_plainFormat=" << fmt_to_str(plain_format);
+        return buf.str();
+    }
 };
-}; // namespace
 
 template<typename T, typename T_IND = int32_t>
 struct scatter_elements_update_gpu_formats_test
@@ -317,6 +341,91 @@ public:
         }
     }
 };
+
+template<typename T, typename T_IND = int32_t>
+struct scatter_elements_update_gpu_reduction_test
+        : public ::testing::TestWithParam<ScatterElementsUpdateReduceParamsWithFormat<T, T_IND> > {
+public:
+    void test(bool is_caching_test) {
+        const auto data_type = type_to_data_type<T>::value;
+        const auto indices_type = type_to_data_type<T_IND>::value;
+        ScatterElementsUpdateParams<T, T_IND> params;
+        format::type plain_format;
+        ScatterElementsUpdateOp::Reduction mode;
+        bool use_init_value;
+        std::tie(params, mode, use_init_value, plain_format) = this->GetParam();
+        params.expected = generateReferenceOutput(plain_format, params, mode, use_init_value);
+
+        auto& engine = get_test_engine();
+        const auto data = engine.allocate_memory({data_type, plain_format, params.data_tensor});
+        const auto indices = engine.allocate_memory({indices_type, plain_format, params.indices_tensor});
+        const auto updates = engine.allocate_memory({data_type, plain_format, params.indices_tensor});
+
+        set_values(data, params.data);
+        set_values(indices, params.indices);
+        set_values(updates, params.updates);
+
+        topology topology;
+        topology.add(input_layout("Data", data->get_layout()));
+        topology.add(input_layout("Indices", indices->get_layout()));
+        topology.add(input_layout("Updates", updates->get_layout()));
+        topology.add(
+            scatter_elements_update("ScatterElementsUpdate",
+                                    input_info("Data"),
+                                    input_info("Indices"),
+                                    input_info("Updates"),
+                                    params.axis,
+                                    mode,
+                                    use_init_value)
+        );
+        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("Data", data);
+        network->set_input_data("Indices", indices);
+        network->set_input_data("Updates", updates);
+
+        const auto outputs = network->execute();
+        const auto output = outputs.at("ScatterElementsUpdate").get_memory();
+        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(params.data.size(), output_ptr.size());
+        ASSERT_EQ(params.expected.size(), output_ptr.size());
+        for (uint32_t i = 0; i < output_ptr.size(); i++) {
+            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << ", i=" << i;
+        }
+    }
+private:
+    static ov::Shape tensorToShape(const tensor &t, const format f) {
+        std::vector<int> vec(cldnn::format::dimension(f));
+        for (size_t i = 0; i < vec.size(); ++i) {
+            vec[i] = t.sizes()[i];
+        }
+        std::reverse(vec.begin() + 2, vec.end());
+
+        return ov::Shape(vec.begin(), vec.end());
+    }
+
+    static std::vector<T> generateReferenceOutput(const format fmt,
+                                                  const ScatterElementsUpdateParams<T>& p,
+                                                  const ScatterElementsUpdateOp::Reduction mode,
+                                                  const bool use_init_value) {
+        std::vector<T> out(p.data_tensor.count());
+        const auto data_shape = tensorToShape(p.data_tensor, fmt);
+        const auto indices_shape = tensorToShape(p.indices_tensor, fmt);
+
+        ngraph::runtime::reference::scatter_elem_update<T, T_IND>(p.data.data(),
+                                                                  p.indices.data(),
+                                                                  p.updates.data(),
+                                                                  p.axis,
+                                                                  out.data(),
+                                                                  data_shape,
+                                                                  indices_shape,
+                                                                  mode,
+                                                                  use_init_value);
+        return out;
+    }
+};
+}; // namespace
 
 using scatter_elements_update_gpu_formats_test_f32 = scatter_elements_update_gpu_formats_test<float>;
 using scatter_elements_update_gpu_formats_test_f16 = scatter_elements_update_gpu_formats_test<half_t>;
@@ -401,6 +510,76 @@ INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_formats_test_mixed_inputs,
                          ),
                          PrintToStringParamName());
 
+using scatter_elements_update_gpu_reduction_test_f32 = scatter_elements_update_gpu_reduction_test<float>;
+using scatter_elements_update_gpu_reduction_test_i32 = scatter_elements_update_gpu_reduction_test<int32_t>;
+
+TEST_P(scatter_elements_update_gpu_reduction_test_f32, basic) {
+    ASSERT_NO_FATAL_FAILURE(test(false));
+}
+
+TEST_P(scatter_elements_update_gpu_reduction_test_i32, basic) {
+    ASSERT_NO_FATAL_FAILURE(test(false));
+}
+
+const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduce_modes{
+    ov::op::v12::ScatterElementsUpdate::Reduction::SUM,
+    ov::op::v12::ScatterElementsUpdate::Reduction::PROD,
+    ov::op::v12::ScatterElementsUpdate::Reduction::MIN,
+    ov::op::v12::ScatterElementsUpdate::Reduction::MAX,
+    ov::op::v12::ScatterElementsUpdate::Reduction::MEAN
+};
+
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_2d,
+                         scatter_elements_update_gpu_reduction_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<float>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_i32_2d,
+                         scatter_elements_update_gpu_reduction_test_i32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<int32_t>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_3d,
+                         scatter_elements_update_gpu_reduction_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams3D<float>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfzyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_4d,
+                         scatter_elements_update_gpu_reduction_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams4D<float>()),
+                                 ::testing::ValuesIn(reduce_modes),
+                                 ::testing::ValuesIn({true, false}),
+                                 ::testing::Values(format::bfwzyx)
+                         ),
+                         PrintToStringParamName());
+
+INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_none_test_f32_2d,
+                         scatter_elements_update_gpu_reduction_test_f32,
+                         ::testing::Combine(
+                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<float>()),
+                                 ::testing::Values(ov::op::v12::ScatterElementsUpdate::Reduction::NONE),
+                                 ::testing::Values(true),
+                                 ::testing::Values(format::bfyx)
+                         ),
+                         PrintToStringParamName());
+
 #ifdef RUN_ALL_MODEL_CACHING_TESTS
 TEST_P(scatter_elements_update_gpu_formats_test_f32, basic_cached) {
     ASSERT_NO_FATAL_FAILURE(test(true));
@@ -418,161 +597,7 @@ TEST(scatter_elements_update_gpu_fp16, d2411_axisF_cached) {
     test_d2411_axisF<float>(true);
 }
 
-
-
-////////////////////////////////////////
-
-template<typename T, typename T_IND = int32_t>
-using ScatterElementsUpdateReduceParamsWithFormat = std::tuple<
-    ScatterElementsUpdateParams<T, T_IND>,
-    ScatterElementsUpdateOp::Reduction,
-    bool,   // use_init_value
-    format::type
->;
-
-namespace {
-    ov::Shape tensorToShape(const tensor &t, const format f) {
-        std::vector<int> vec(cldnn::format::dimension(f));
-        for (size_t i = 0; i < vec.size(); ++i) {
-            vec[i] = t.sizes()[i];
-        }
-        std::reverse(vec.begin() + 2, vec.end());
-
-        return ov::Shape(vec.begin(), vec.end());
-    }
-};
-
-template<typename T, typename T_IND = int32_t>
-void generateReferenceOutput(const format fmt,
-                             const ScatterElementsUpdateOp::Reduction mode,
-                             const bool use_init_value,
-                             ScatterElementsUpdateParams<T>& p) {
-    std::vector<float> out(p.data_tensor.count());
-    const auto data_shape = tensorToShape(p.data_tensor, fmt);
-    const auto indices_shape = tensorToShape(p.indices_tensor, fmt);
-
-    ngraph::runtime::reference::scatter_elem_update<T, T_IND>(p.data.data(),
-                                                              p.indices.data(),
-                                                              p.updates.data(),
-                                                              p.axis,
-                                                              out.data(),
-                                                              data_shape,
-                                                              indices_shape,
-                                                              mode,
-                                                              use_init_value);
-    p.expected = getValues<T>(out);
+TEST_P(scatter_elements_update_gpu_reduction_test_f32, cached) {
+    ASSERT_NO_FATAL_FAILURE(test(true));
 }
 
-struct PrintToStringParamNameReduce {
-    template<typename T, typename T_IND>
-    std::string operator()(const testing::TestParamInfo<ScatterElementsUpdateReduceParamsWithFormat<T, T_IND> > &param) {
-        std::stringstream buf;
-        ScatterElementsUpdateParams<T, T_IND> p;
-        ScatterElementsUpdateOp::Reduction mode;
-        bool use_init_value;
-        format::type plain_format;
-        std::tie(p, mode, use_init_value, plain_format) = param.param;
-        buf << "_axis=" << p.axis
-            << "_mode=" << static_cast<int>(mode)
-            << "_use_init_value=" << use_init_value
-            << "_data=" << p.data_tensor.to_string()
-            << "_indices=" << p.indices_tensor.to_string()
-            << "_plainFormat=" << fmt_to_str(plain_format);
-        return buf.str();
-    }
-};
-
-template<typename T, typename T_IND = int32_t>
-struct scatter_elements_update_gpu_reduction_test
-        : public ::testing::TestWithParam<ScatterElementsUpdateReduceParamsWithFormat<T, T_IND> > {
-public:
-    void test(bool is_caching_test) {
-        const auto data_type = type_to_data_type<T>::value;
-        const auto indices_type = type_to_data_type<T_IND>::value;
-        ScatterElementsUpdateParams<T, T_IND> params;
-        format::type plain_format;
-        ScatterElementsUpdateOp::Reduction mode;
-        bool use_init_value;
-        std::tie(params, mode, use_init_value, plain_format) = this->GetParam();
-
-        generateReferenceOutput<T>(plain_format, mode, use_init_value, params);
-
-        auto& engine = get_test_engine();
-        const auto data = engine.allocate_memory({data_type, plain_format, params.data_tensor});
-        const auto indices = engine.allocate_memory({indices_type, plain_format, params.indices_tensor});
-        const auto updates = engine.allocate_memory({data_type, plain_format, params.indices_tensor});
-
-        set_values(data, params.data);
-        set_values(indices, params.indices);
-        set_values(updates, params.updates);
-
-        topology topology;
-        topology.add(input_layout("Data", data->get_layout()));
-        topology.add(input_layout("Indices", indices->get_layout()));
-        topology.add(input_layout("Updates", updates->get_layout()));
-        topology.add(
-            scatter_elements_update("ScatterElementsUpdate",
-                                    input_info("Data"),
-                                    input_info("Indices"),
-                                    input_info("Updates"),
-                                    params.axis,
-                                    mode,
-                                    use_init_value)
-        );
-        cldnn::network::ptr network = get_network(engine, topology, get_test_default_config(engine), get_test_stream_ptr(), is_caching_test);
-
-        network->set_input_data("Data", data);
-        network->set_input_data("Indices", indices);
-        network->set_input_data("Updates", updates);
-
-        const auto outputs = network->execute();
-        const auto output = outputs.at("ScatterElementsUpdate").get_memory();
-        const cldnn::mem_lock<T> output_ptr(output, get_test_stream());
-
-        ASSERT_EQ(params.data.size(), output_ptr.size());
-        ASSERT_EQ(params.expected.size(), output_ptr.size());
-        for (uint32_t i = 0; i < output_ptr.size(); i++) {
-            ASSERT_NEAR(output_ptr[i], params.expected[i], getError<T>()) << ", i=" << i;
-        }
-    }
-};
-
-using scatter_elements_update_gpu_reduction_test_f32 = scatter_elements_update_gpu_reduction_test<float>;
-/*
-using scatter_elements_update_gpu_reduction_test_f16 = scatter_elements_update_gpu_reduction_test<half_t>;
-using scatter_elements_update_gpu_reduction_test_i32 = scatter_elements_update_gpu_reduction_test<int32_t>;
-*/
-
-TEST_P(scatter_elements_update_gpu_reduction_test_f32, basic) {
-    ASSERT_NO_FATAL_FAILURE(test(false));
-}
-
-/*
-TEST_P(scatter_elements_update_gpu_formats_test_f16, basic) {
-    ASSERT_NO_FATAL_FAILURE(test(false));
-}
-
-TEST_P(scatter_elements_update_gpu_formats_test_i32, basic) {
-    ASSERT_NO_FATAL_FAILURE(test(false));
-}
-*/
-
-const std::vector<ov::op::v12::ScatterElementsUpdate::Reduction> reduce_modes{
-    //ov::op::v12::ScatterElementsUpdate::Reduction::NONE,
-    ov::op::v12::ScatterElementsUpdate::Reduction::SUM,
-    ov::op::v12::ScatterElementsUpdate::Reduction::PROD,
-    ov::op::v12::ScatterElementsUpdate::Reduction::MIN,
-    ov::op::v12::ScatterElementsUpdate::Reduction::MAX,
-    ov::op::v12::ScatterElementsUpdate::Reduction::MEAN
-};
-
-
-INSTANTIATE_TEST_SUITE_P(scatter_elements_update_gpu_reduction_test_f32_2d,
-                         scatter_elements_update_gpu_reduction_test_f32,
-                         ::testing::Combine(
-                                 ::testing::ValuesIn(generateScatterElementsUpdateParams2D<float>()),
-                                 ::testing::ValuesIn(reduce_modes),
-                                 ::testing::ValuesIn({true, false}),
-                                 ::testing::Values(format::bfyx)
-                         ),
-                         PrintToStringParamNameReduce());
