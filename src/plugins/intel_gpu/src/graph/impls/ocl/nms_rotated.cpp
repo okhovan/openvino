@@ -58,8 +58,10 @@ public:
 
 /*
         if (arg.use_multiple_outputs()) {
+*/
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[1]));
             params.outputs.push_back(convert_data_tensor(impl_param.output_layouts[2]));
+/*
             params.use_multiple_outputs = true;
         }
 */
@@ -69,13 +71,13 @@ public:
                 kernel_selector::Datatype::INT32 : kernel_selector::Datatype::INT64;
         params.clockwise = primitive->clockwise;
 
-/*
         if (impl_param.get_program().get_node(primitive->id).is_dynamic()) {
-            params.reuse_internal_buffer = true;
+            int z = 0;
+            ++z;
+//            params.reuse_internal_buffer = true;
         }
 
         params.set_dynamic_shape_offsets();
-*/
 
         auto& kernel_selector = kernel_selector::nms_rotated_kernel_selector::Instance();
         auto best_kernel = kernel_selector.get_best_kernel(params, optional_params);
@@ -122,6 +124,7 @@ namespace detail {
 
 attach_nms_rotated_impl::attach_nms_rotated_impl() {
     implementation_map<nms_rotated>::add(impl_types::ocl,
+                                                 shape_types::static_shape,
                                                  nms_rotated_impl::create,
                                                  {
                                                      std::make_tuple(data_types::i32, format::bfyx),

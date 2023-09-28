@@ -22,7 +22,10 @@ static void CreateNMSRotatedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     const size_t num_outputs = op->get_output_size();
     assert(num_outputs == 3);
 
-
+    if (p.use_new_shape_infer()) {
+        auto z = 0;
+        ++z;
+    }
 
     std::vector<cldnn::memory::ptr> shared_memory;
 
