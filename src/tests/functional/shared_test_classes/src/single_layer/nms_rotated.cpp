@@ -336,8 +336,10 @@ void NmsRotatedLayerTest::SetUp() {
                                                                outType,
                                                                clockwise);
 
-    ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nmsNode)};
-    function = std::make_shared<ov::Model>(results, params, "NMSRotated");
+    //ov::ResultVector results{std::make_shared<ov::op::v0::Result>(nmsNode)};
+    //function = std::make_shared<ov::Model>(results, params, "NMSRotated");
+    function = std::make_shared<Function>(nmsNode, params, "NMS");
+
 /****** TBD
     auto nms = builder::makeNms(paramOuts[0],
                                 paramOuts[1],

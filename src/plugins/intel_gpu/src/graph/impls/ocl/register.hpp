@@ -126,6 +126,7 @@ REGISTER_OCL(lstm_elt);
 REGISTER_OCL(multiclass_nms);
 REGISTER_OCL(mutable_data);
 REGISTER_OCL(mvn);
+REGISTER_OCL(nms_rotated);
 REGISTER_OCL(non_max_suppression);
 REGISTER_OCL(matrix_nms);
 REGISTER_OCL(normalize);

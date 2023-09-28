@@ -259,6 +259,9 @@ REGISTER_FACTORY(v11, TopK);
 // ------------------------------ Supported v12 ops ----------------------------- //
 REGISTER_FACTORY(v12, Pad);
 
+// ------------------------------ Supported v13 ops ----------------------------- //
+REGISTER_FACTORY(v13, NMSRotated);
+
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
 REGISTER_FACTORY(internal, GenerateProposalsIEInternal);

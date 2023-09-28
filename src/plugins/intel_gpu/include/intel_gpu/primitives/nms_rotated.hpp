@@ -14,6 +14,8 @@ namespace cldnn {
 struct nms_rotated : public primitive_base<nms_rotated> {
     CLDNN_DECLARE_PRIMITIVE(nms_rotated)
 
+    nms_rotated() : primitive_base("", {}) {}
+
     /// @brief Creates NMSRotated primitive.
     /// @param id This primitive id.
     /// @param boxes Id of input primitive with bounding boxes.
@@ -38,18 +40,21 @@ struct nms_rotated : public primitive_base<nms_rotated> {
                 const bool sort_result_descending = true,
                 const data_types output_data_type = data_types::i32,
                 bool clockwise = true,
+                const size_t max_number_of_boxes = 0,
                 const primitive_id selected_scores = primitive_id{},
                 const primitive_id valid_outputs = primitive_id{})
-        : primitive_base{id, inputs, {padding{}}, {optional_data_type{}} /*do we need num_outputs here???*/}
+        : primitive_base{id, inputs, {padding{}}, {optional_data_type{}}, 3}
         , sort_result_descending(sort_result_descending)
         , output_data_type(output_data_type)
         , clockwise(clockwise)
+        , max_number_of_boxes(max_number_of_boxes)
         , selected_scores(selected_scores)
         , valid_outputs(valid_outputs) {}
 
     bool sort_result_descending;
     data_types output_data_type;
     bool clockwise;
+    size_t max_number_of_boxes;
     primitive_id selected_scores;
     primitive_id valid_outputs;
 
@@ -78,8 +83,8 @@ struct nms_rotated : public primitive_base<nms_rotated> {
 
     std::vector<std::reference_wrapper<const primitive_id>> get_dependencies() const override {
         std::vector<std::reference_wrapper<const primitive_id>> ret;
-        ret.emplace_back(selected_scores);
-        ret.emplace_back(valid_outputs);
+        ret.push_back(selected_scores);
+        ret.push_back(valid_outputs);
         return ret;
     }
 

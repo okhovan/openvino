@@ -4,11 +4,12 @@
 
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
-#include "intel_gpu/primitives/nms_rotated.hpp"
-#include "intel_gpu/primitives/mutable_data.hpp"
-#include "transformations/utils/utils.hpp"
 
 #include "openvino/op/nms_rotated.hpp"
+
+#include "intel_gpu/primitives/mutable_data.hpp"
+#include "intel_gpu/primitives/nms_rotated.hpp"
+
 
 namespace ov {
 namespace intel_gpu {
@@ -21,15 +22,19 @@ static void CreateNMSRotatedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
     const size_t num_outputs = op->get_output_size();
     assert(num_outputs == 3);
 
-    std::vector<cldnn::memory::ptr> shared_memory;
-    const auto output_indices = op->get_output_partial_shape(0)[0].get_length();
 
+
+    std::vector<cldnn::memory::ptr> shared_memory;
+
+    const auto boxes_shape = op->get_input_partial_shape(0);
+    //const auto max_number_of_boxes = (boxesShape[0] * boxesShape[1]).get_length();
+    const auto max_number_of_boxes = boxes_shape[0].get_length() * boxes_shape[1].get_length();
 
     const auto scores_precision = op->get_output_element_type(1);
     const cldnn::layout scores_layout{
         cldnn::element_type_to_data_type(scores_precision),
         cldnn::format::bfyx,
-        cldnn::tensor(static_cast<int32_t>(output_indices), 3, 1, 1)};
+        cldnn::tensor(static_cast<int32_t>(max_number_of_boxes), 3, 1, 1)};
     shared_memory.emplace_back(p.get_engine().allocate_memory(scores_layout));
     const cldnn::primitive_id scores_id = layer_type_name_ID(op) + "_md_write_first";
     const cldnn::mutable_data scores_prim{scores_id, shared_memory.back()};
@@ -55,6 +60,7 @@ static void CreateNMSRotatedOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
                                          op->get_sort_result_descending(),
                                          cldnn::element_type_to_data_type(op->get_output_type_attr()),
                                          op->get_clockwise(),
+                                         max_number_of_boxes,
                                          scores_id,
                                          valid_output_id);
     p.add_primitive(*op, prim);
