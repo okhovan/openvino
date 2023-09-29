@@ -43,11 +43,8 @@ protected:
     void SetUp() override;
     InputShapeParams inShapeParams;
 
-/******* TBD
-private:
     void CompareBBoxes(const std::vector<std::pair<ngraph::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
                        const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs);
-*/
 };
 
 }  // namespace LayerTestsDefinitions

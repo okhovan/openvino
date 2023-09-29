@@ -19,6 +19,12 @@ class TRANSFORMATIONS_API NonMaxSuppressionIEInternal : public Op {
 public:
     OPENVINO_OP("NonMaxSuppressionIEInternal", "ie_internal_opset");
 
+    enum Rotation {
+        NONE,
+        CLOCKWISE,
+        COUNTERCLOCKWISE
+    };
+
     NonMaxSuppressionIEInternal() = default;
 
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
@@ -29,7 +35,8 @@ public:
                                 int center_point_box,
                                 bool sort_result_descending,
                                 const element::Type& output_type = element::i64,
-                                const element::Type& score_output_type = element::f32);
+                                const element::Type& score_output_type = element::f32,
+                                const Rotation rotation = Rotation::NONE);
 
     NonMaxSuppressionIEInternal(const Output<Node>& boxes,
                                 const Output<Node>& scores,
@@ -40,7 +47,8 @@ public:
                                 int center_point_box,
                                 bool sort_result_descending,
                                 const element::Type& output_type = element::i64,
-                                const element::Type& score_output_type = element::f32);
+                                const element::Type& score_output_type = element::f32,
+                                const Rotation rotation = Rotation::NONE);
 
     void validate_and_infer_types() override;
 
@@ -52,7 +60,7 @@ public:
     bool m_sort_result_descending = true;
     element::Type m_output_type;
     element::Type m_scores_output_type;
-
+    Rotation m_rotation{Rotation::NONE};
 private:
     int64_t max_boxes_output_from_input() const;
 };

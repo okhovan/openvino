@@ -73,7 +73,7 @@ void NmsRotatedLayerTest::GenerateInputs() {
 void NmsRotatedLayerTest::Compare(
     const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
-    //**** TBD CompareBBoxes(expectedOutputs, actualOutputs);
+    CompareBBoxes(expectedOutputs, actualOutputs);
 }
 
 struct Rect {
@@ -108,7 +108,6 @@ struct Box {
  *    [batch_index, class_index, box_score].
  * 3: valid_outputs - 1D tensor with 1 element of type T_IND representing the total number of selected boxes.
  */
-/***** TBD
 void NmsRotatedLayerTest::CompareBBoxes(
     const std::vector<std::pair<ov::element::Type, std::vector<std::uint8_t>>>& expectedOutputs,
     const std::vector<InferenceEngine::Blob::Ptr>& actualOutputs) {
@@ -283,7 +282,6 @@ void NmsRotatedLayerTest::CompareBBoxes(
         }
     }
 }
-*/
 
 void NmsRotatedLayerTest::SetUp() {
     InputPrecisions inPrecisions;

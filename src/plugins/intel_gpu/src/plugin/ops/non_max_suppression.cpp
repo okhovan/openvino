@@ -17,7 +17,13 @@ namespace ov {
 namespace intel_gpu {
 
 static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::NonMaxSuppressionIEInternal>& op) {
-    validate_inputs_count(op, {2, 3, 4, 5, 6});
+    const bool is_nms_rotated = op->m_rotation != ov::op::internal::NonMaxSuppressionIEInternal::Rotation::NONE;
+    if (is_nms_rotated) {
+        // For NMSRotated threshold inputs are mandatory, and soft nms_sigma is absent
+        validate_inputs_count(op, {5});
+    } else {
+        validate_inputs_count(op, {2, 3, 4, 5, 6});
+    }
     auto inputs = p.GetInputInfo(op);
     std::vector<cldnn::input_info> reordered_inputs;
     reordered_inputs.resize(inputs.size());
@@ -83,6 +89,12 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
             case 3: prim.num_select_per_class = reordered_inputs[2].pid;
             case 2: break;
             default: OPENVINO_THROW("Incorrect number of input primitives for layer: ", op->get_friendly_name());
+        }
+
+        if (is_nms_rotated) {
+            prim.rotation = op->m_rotation == ov::op::internal::NonMaxSuppressionIEInternal::Rotation::CLOCKWISE ?
+                        cldnn::non_max_suppression::Rotation::CLOCKWISE
+                        : cldnn::non_max_suppression::Rotation::COUNTERCLOCKWISE;
         }
 
         p.add_primitive(*op, prim);
@@ -156,6 +168,12 @@ static void CreateNonMaxSuppressionIEInternalOp(ProgramBuilder& p, const std::sh
             case 3: prim.third_output = inputs[inputs.size() - 2].pid;
             case 2: prim.second_output = inputs[inputs.size() - 1].pid;
             default: break;
+        }
+
+        if (is_nms_rotated) {
+            prim.rotation = op->m_rotation == ov::op::internal::NonMaxSuppressionIEInternal::Rotation::CLOCKWISE ?
+                        cldnn::non_max_suppression::Rotation::CLOCKWISE
+                        : cldnn::non_max_suppression::Rotation::COUNTERCLOCKWISE;
         }
 
         p.add_primitive(*op, prim);

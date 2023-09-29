@@ -76,6 +76,26 @@ inline COORD_TYPE_4 FUNC(getBoxCoords)(const __global INPUT0_TYPE *boxes, const 
     return coords;
 }
 
+#ifdef ROTATION
+inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const INPUT0_TYPE angleA,
+        const COORD_TYPE_4 boxB, const INPUT0_TYPE angleB)
+{
+    const float areaA = convert_float(boxA[3]) * convert_float(boxA[2]);
+    const float areaB = convert_float(boxB[3]) * convert_float(boxB[2]);
+
+    if (areaA <= 0.0f || areaB <= 0.0f)
+        return 0.0f;
+
+    const float intersection_area = 0;//iou_rotated::rotated_boxes_intersection(boxI, boxJ);
+
+
+
+
+
+    const float union_area = areaA + areaB - intersection_area;
+    return intersection_area / union_area;
+}
+#else
 inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TYPE_4 boxB)
 {
 #if BOX_ENCODING == 0
@@ -110,6 +130,7 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const COORD_TY
     const float union_area = areaA + areaB - intersection_area;
     return intersection_area / union_area;
 }
+#endif // ROTATION
 
 inline float FUNC(scaleIOU)(float iou, float iou_threshold, float scale)
 {
@@ -427,9 +448,11 @@ KERNEL (non_max_suppression_ref_stage_2)(
     const ushort classId = get_global_id(1);
 
     float scale = 0.0f;
+    #ifndef ROTATION
     if (SOFT_NMS_SIGMA_VAL > 0.0f) {
         scale = -0.5f / SOFT_NMS_SIGMA_VAL;
     }
+    #endif
 
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     const int kSortedBoxNum = buffer2[batchId * NUM_CLASSES + classId];
@@ -442,12 +465,25 @@ KERNEL (non_max_suppression_ref_stage_2)(
         SBOX_INFO next_candidate = sortedBoxList[i];
         INPUT1_TYPE original_score = next_candidate.score;
         const COORD_TYPE_4 next_candidate_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, next_candidate.boxId);
+
+        #ifdef ROTATION
+        const INPUT0_TYPE next_candidate_angle = boxes[INPUT0_GET_INDEX(batchId, next_candidate.boxId, 5, 0)];
+        #endif
+
         ++i;
 
         bool should_hard_suppress = false;
         for (int j = selectedBoxNum - 1; j >= next_candidate.suppress_begin_index; --j) {
             const COORD_TYPE_4 selected_box_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, selectedBoxList[j].boxId);
+
+            #ifdef ROTATION
+            const INPUT0_TYPE selected_box_angle = boxes[INPUT0_GET_INDEX(batchId, selectedBoxList[j].boxId, 5, 0)];
+            const float iou = FUNC_CALL(intersectionOverUnion)(next_candidate_coord, next_candidate_angle,
+                    selected_box_coord, selected_box_angle);
+            #else
             const float iou = FUNC_CALL(intersectionOverUnion)(next_candidate_coord, selected_box_coord);
+            #endif
+
             next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
 
             if (iou >= IOU_THRESHOLD_VAL && !(SOFT_NMS_SIGMA_VAL > 0.0f)) {

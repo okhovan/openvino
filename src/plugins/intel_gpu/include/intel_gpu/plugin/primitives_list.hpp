@@ -260,7 +260,7 @@ REGISTER_FACTORY(v11, TopK);
 REGISTER_FACTORY(v12, Pad);
 
 // ------------------------------ Supported v13 ops ----------------------------- //
-REGISTER_FACTORY(v13, NMSRotated);
+//*** TBD to be removed REGISTER_FACTORY(v13, NMSRotated);
 
 // --------------------------- Supported internal ops --------------------------- //
 REGISTER_FACTORY(internal, NonMaxSuppressionIEInternal);
