@@ -197,6 +197,37 @@ inline int FUNC(getIntersectionPoints)(const POINT_2D* pts1/*[4]*/, const POINT_
     return num;
 }
 
+inline void FUNC(swapPoints)(POINT_2D* a, POINT_2D* b)
+{
+    POINT_2D temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+inline void FUNC(sortPoints)(POINT_2D* arr, int l, int h)
+{
+    for (int i = 0; i < h-l; i++) {
+        bool swapped = false;
+        for (int j = l; j < h-i; j++) {
+            bool need_swap = false;
+            const float temp = FUNC_CALL(cross2D)(arr[j], arr[j+1]);
+            if (fabs(temp) < 1e-6f) {
+                need_swap = FUNC_CALL(dot2D)(arr[j], arr[j]) < FUNC_CALL(dot2D)(arr[j+1], arr[j+1]);
+            } else {
+                need_swap = temp > 0;
+            }
+
+            if (need_swap) {
+                FUNC_CALL(swapPoints)(&arr[j], &arr[j+1]);
+                swapped = true;
+            }
+        }
+
+        if (!swapped)
+            break;
+    }
+}
+
 inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in, POINT_2D* q/*[24]*/, bool shift_to_zero) {
     if (num_in < 2) {
         return -1;
@@ -222,13 +253,7 @@ inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in,
     }
 
     // Swap the starting point to position 0
-    POINT_2D temp;
-    temp.x = q[t].x;
-    temp.y = q[t].y;
-    q[t].x = q[0].x;
-    q[t].y = q[0].y;
-    q[0].x = temp.x;
-    q[0].y = temp.y;
+    FUNC_CALL(swapPoints)(&q[t], &q[0]);
 
     // Step 3:
     // Sort point 1 ~ num_in according to their relative cross-product values
@@ -239,16 +264,8 @@ inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in,
         dist[i] = FUNC_CALL(dot2D)(q[i], q[i]);
     }
 
-/*
-    std::sort(q + 1, q + num_in, [](const Point2D& A, const Point2D& B) -> bool {
-        float temp = FUNC_CALL(cross2D)(A, B);
-        if (fabs(temp) < 1e-6f) {
-            return FUNC_CALL(dot2D)(A, A) < dot_2d(B, B);
-        } else {
-            return temp > 0;
-        }
-    });
-*/
+    FUNC_CALL(sortPoints)(q, 1, num_in);
+
     // compute distance to origin after sort, since the points are now different.
     for (int i = 0; i < num_in; i++) {
         dist[i] = FUNC_CALL(dot2D)(q[i], q[i]);
