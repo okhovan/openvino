@@ -52,8 +52,11 @@ struct non_max_suppression_basic : public testing::Test {
     //   1      1     0     0.1    -- iou 0.43
     using DataType = typename TypeWithLayout::Type;
     const int batch_size = 2;
+    const int rotated_batch_size = 1;
     const int classes_num = 2;
+    const int rotated_classes_num = 1;
     const int boxes_num = 3;
+    const int rotated_boxes_num = 4;
     const int selected_indices_num = 6;
 
     const std::vector<DataType> boxes_data = {
@@ -78,10 +81,30 @@ struct non_max_suppression_basic : public testing::Test {
         DataType(0.3f),
     };
 
+    const std::vector<DataType> rotated_boxes_data = {
+        DataType(7.f), DataType(4.f),  DataType(8.f), DataType(7.f), DataType(0.5f),
+        DataType(4.f), DataType(7.f), DataType(9.f), DataType(11.f),  DataType(0.6f),
+        DataType(4.f), DataType(8.f), DataType(10.f), DataType(12.f),  DataType(0.3f),
+        DataType(2.f),  DataType(5.f),  DataType(13.f), DataType(7.f), DataType(0.6f)
+    };
+
+    const std::vector<DataType> rotated_scores_data = {
+        DataType(0.65f),
+        DataType(0.7f),
+        DataType(0.55f),
+        DataType(0.96f)
+    };
+
     const layout boxes_layout = layout(ov::PartialShape{batch_size, boxes_num, 4},
                                        type_to_data_type<DataType>::value,
                                        format::bfyx);
+    const layout rotated_boxes_layout = layout(ov::PartialShape{rotated_batch_size, rotated_boxes_num, 5},
+                                       type_to_data_type<DataType>::value,
+                                       format::bfyx);
     const layout scores_layout = layout(ov::PartialShape{batch_size, classes_num, boxes_num},
+                                        type_to_data_type<DataType>::value,
+                                        format::bfyx);
+    const layout rotated_scores_layout = layout(ov::PartialShape{rotated_batch_size, rotated_classes_num, rotated_boxes_num},
                                         type_to_data_type<DataType>::value,
                                         format::bfyx);
     const layout selected_scores_layout = layout(ov::PartialShape{selected_indices_num, 3}, data_type, layout_format);
@@ -93,9 +116,21 @@ struct non_max_suppression_basic : public testing::Test {
         return mem;
     }
 
+    memory::ptr get_rotated_boxes_memory(engine& engine) {
+        auto mem = engine.allocate_memory(rotated_boxes_layout);
+        tests::set_values(mem, rotated_boxes_data);
+        return mem;
+    }
+
     memory::ptr get_scores_memory(engine& engine) {
         auto mem = engine.allocate_memory(scores_layout);
         tests::set_values(mem, scores_data);
+        return mem;
+    }
+
+    memory::ptr get_rotated_scores_memory(engine& engine) {
+        auto mem = engine.allocate_memory(rotated_scores_layout);
+        tests::set_values(mem, rotated_scores_data);
         return mem;
     }
 
@@ -634,6 +669,75 @@ struct non_max_suppression_basic : public testing::Test {
             ASSERT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
         }
     }
+
+    void test_nms_rotated(bool is_caching_test) {
+        auto& engine = tests::get_test_engine();
+
+        const auto num_per_class_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(num_per_class_mem, {5000.f});
+        const auto iou_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(iou_threshold_mem, {0.5f});
+        const auto score_threshold_mem = engine.allocate_memory(layout(data_types::f32, format::bfyx, tensor(batch(1))));
+        tests::set_values(score_threshold_mem, {0.0f});
+
+        topology topo;
+        topo.add(input_layout("boxes", this->rotated_boxes_layout));
+        topo.add(input_layout("scores", this->rotated_scores_layout));
+        topo.add(data("num_per_class", num_per_class_mem));
+        topo.add(data("iou_threshold", iou_threshold_mem));
+        topo.add(data("score_threshold", score_threshold_mem));
+        topo.add(
+                reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
+                reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type));
+        auto nms = non_max_suppression("nms",
+                                    input_info("reformat_boxes"),
+                                    input_info("reformat_scores"),
+                                    this->batch_size * this->classes_num * this->boxes_num,
+                                    false,
+                                    false,
+                                    "num_per_class",
+                                    "iou_threshold",
+                                    "score_threshold");
+        nms.rotation = non_max_suppression::Rotation::CLOCKWISE;
+        topo.add(nms);
+        topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        cldnn::network::ptr net = get_network(engine, topo, config, get_test_stream_ptr(), is_caching_test);
+
+        auto boxes_mem = this->get_rotated_boxes_memory(engine);
+        auto scores_mem = this->get_rotated_scores_memory(engine);
+
+        net->set_input_data("boxes", boxes_mem);
+        net->set_input_data("scores", scores_mem);
+
+        auto result = net->execute();
+
+/*
+            .expectedSelectedScores(
+                reference_tests::Tensor(ET_TH,
+                                        {3, 3},
+                                        std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65}))
+            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
+*/
+
+        std::vector<int> expected_out = {
+            0,         0,         3,         0,         0,         1,         0,         0,         0,
+            this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad,
+            this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad,
+            this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad};
+
+        const auto out_mem = result.at("plane_nms").get_memory();
+        const cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+
+        ASSERT_EQ(expected_out.size(), out_ptr.size());
+        for (size_t i = 0; i < expected_out.size(); ++i) {
+            EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        }
+    }
+
 };
 
 using nms_types = testing::Types<TypeWithLayoutFormat<float, cldnn::format::bfyx>,
@@ -706,4 +810,8 @@ TYPED_TEST(non_max_suppression_basic, soft_nms_sigma_cached) {
 #endif // RUN_ALL_MODEL_CACHING_TESTS
 TYPED_TEST(non_max_suppression_basic, multiple_outputs_cached) {
     this->test_multiple_outputs(true);
+}
+
+TYPED_TEST(non_max_suppression_basic, rotated) {
+    this->test_nms_rotated(false);
 }

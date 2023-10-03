@@ -114,6 +114,7 @@ void NmsRotatedLayerTest::CompareBBoxes(
     size_t numBatches, numBoxes, numClasses;
     std::tie(numBatches, numBoxes, numClasses) = inShapeParams;
 
+    // must be rewritten for NMSRotated
     auto iouFunc = [](const Box& boxI, const Box& boxJ) {
         const Rect& rectI = boxI.rect;
         const Rect& rectJ = boxJ.rect;
