@@ -986,7 +986,7 @@ KERNEL (non_max_suppression_ref_stage_3)(
 #endif
 
 int z = OUTPUT_NUM;
-//printf("OUTPUT_NUM=%d, outputIdx=%d\n", z, outputIdx);
+printf("OUTPUT_NUM=%d, outputIdx=%d\n", z, outputIdx);
 
 #ifdef THIRD_OUTPUT_TYPE
     valid_outputs[THIRD_OUTPUT_GET_INDEX(0, 0, 0, 0)] = TO_THIRD_OUTPUT_TYPE(outputIdx);

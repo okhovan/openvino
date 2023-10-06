@@ -732,26 +732,32 @@ struct non_max_suppression_basic : public testing::Test {
 
         auto result = net->execute();
 
-        std::vector<int> expected_indices = {0, 0, 3, 0, 0, 1, 0, 0, 0, 333, 333, 333};
-        std::vector<float> expected_scores = {0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65, 999, 999, 999};
-        const int expected_valid_outputs = static_cast<int>(expected_indices.size()) / 3;
+        std::vector<int> expected_indices = {0, 0, 3, 0, 0, 1, 0, 0, 0};
+        std::vector<float> expected_scores = {0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65};
+        const auto expected_valid_outputs = expected_indices.size() / 3;
 
         //const auto valid_outputs_mem = result.at("plane_outputs").get_memory();
         cldnn::mem_lock<int> valid_outputs_ptr(valid_outputs_mem, get_test_stream());
 
-        EXPECT_EQ(expected_valid_outputs, valid_outputs_ptr[0]);
+        const size_t num_valid_outputs = static_cast<size_t>(valid_outputs_ptr[0]);
+        EXPECT_EQ(expected_valid_outputs, num_valid_outputs);
 
         const auto indices_mem = result.at("plane_nms").get_memory();
         const cldnn::mem_lock<int> indices_ptr(indices_mem, get_test_stream());
-        EXPECT_EQ(expected_indices.size(), indices_ptr.size());
+        EXPECT_GE(indices_ptr.size(), expected_indices.size());
 
         //const auto selected_scores_mem = result.at("plane_scores").get_memory();
         const cldnn::mem_lock<float> selected_scores_ptr(selected_scores_mem, get_test_stream());
-        EXPECT_EQ(expected_scores.size(), selected_scores_ptr.size());
+        EXPECT_GE(selected_scores_ptr.size(), expected_scores.size());
 
-        for (size_t i = 0; i < /*expected_*/indices_ptr.size(); ++i) {
-            EXPECT_EQ(expected_indices[i], indices_ptr[i]) << "at i = " << i;
-            EXPECT_FLOAT_EQ(expected_scores[i], selected_scores_ptr[i]) << "at i = " << i;
+        for (size_t i = 0; i < indices_ptr.size(); ++i) {
+            if (i < num_valid_outputs * 3) {
+                EXPECT_EQ(expected_indices[i], indices_ptr[i]) << "at i = " << i;
+                EXPECT_FLOAT_EQ(expected_scores[i], selected_scores_ptr[i]) << "at i = " << i;
+            } else {
+                EXPECT_EQ(indices_ptr[i], -1) << "at i = " << i;
+                EXPECT_FLOAT_EQ(selected_scores_ptr[i], -1) << "at i = " << i;
+            }
         }
     }
 
