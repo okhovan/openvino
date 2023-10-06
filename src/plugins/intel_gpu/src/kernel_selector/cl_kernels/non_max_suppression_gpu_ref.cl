@@ -86,7 +86,11 @@ typedef struct {
 
 inline void FUNC(getRotatedVertices)(const COORD_TYPE_4 box, const INPUT0_TYPE angle, POINT_2D* pts/*[4]*/) {
     // M_PI / 180. == 0.01745329251
-    float theta = angle;  // angle already in radians
+    const float theta = angle
+                        #if ROTATION == 2
+                            * -1.0f
+                        #endif
+                        ;
     float cosTheta2 = cos(theta) * 0.5f;
     float sinTheta2 = sin(theta) * 0.5f;
 
@@ -114,6 +118,16 @@ inline float FUNC(cross2D)(const POINT_2D A, const POINT_2D B) {
 }
 
 inline int FUNC(getIntersectionPoints)(const POINT_2D* pts1/*[4]*/, const POINT_2D* pts2/*[4]*/, POINT_2D* intersections/*[24]*/) {
+printf("pts1[0] = %f %f ", pts1[0].x, pts1[0].y);
+printf("pts1[1] = %f %f ", pts1[1].x, pts1[1].y);
+printf("pts1[2] = %f %f ", pts1[2].x, pts1[2].y);
+printf("pts1[3] = %f %f\n", pts1[3].x, pts1[3].y);
+
+printf("pts2[0] = %f %f ", pts2[0].x, pts2[0].y);
+printf("pts2[1] = %f %f ", pts2[1].x, pts2[1].y);
+printf("pts2[2] = %f %f ", pts2[2].x, pts2[2].y);
+printf("pts2[3] = %f %f\n", pts2[3].x, pts2[3].y);
+
     // Line vector
     // A line from p1 to p2 is: p1 + (p2-p1)*t, t=[0,1]
     POINT_2D vec1[4], vec2[4];
@@ -130,7 +144,7 @@ inline int FUNC(getIntersectionPoints)(const POINT_2D* pts1/*[4]*/, const POINT_
         for (int j = 0; j < 4; j++) {
             // Solve for 2x2 Ax=b
             float det = FUNC_CALL(cross2D)(vec2[j], vec1[i]);
-
+//printf("getIntersectionPoints i=%d j=%d det=%f\n", i, j, det);
             // This takes care of parallel lines
             if (fabs(det) <= 1e-14f) {
                 continue;
@@ -142,10 +156,13 @@ inline int FUNC(getIntersectionPoints)(const POINT_2D* pts1/*[4]*/, const POINT_
 
             float t1 = FUNC_CALL(cross2D)(vec2[j], vec12) / det;
             float t2 = FUNC_CALL(cross2D)(vec1[i], vec12) / det;
+//printf("getIntersectionPoints i=%d j=%d det=%f t1=%f t2=%f\n", i, j, det, t1, t2);
 
             if (t1 >= 0.0f && t1 <= 1.0f && t2 >= 0.0f && t2 <= 1.0f) {
-                intersections[num++].x = pts1[i].x + vec1[i].x * t1;
-                intersections[num++].y = pts1[i].y + vec1[i].y * t1;
+                intersections[num].x = pts1[i].x + vec1[i].x * t1;
+                intersections[num].y = pts1[i].y + vec1[i].y * t1;
+                ++num;
+//printf("getIntersectionPoints STEP 1 num=%d\n", num);
             }
         }
     }
@@ -169,7 +186,10 @@ inline int FUNC(getIntersectionPoints)(const POINT_2D* pts1/*[4]*/, const POINT_
             float APdotAD = -FUNC_CALL(dot2D)(AP, DA);
 
             if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
-                intersections[num++] = pts1[i];
+                intersections[num].x = pts1[i].x;
+                intersections[num].y = pts1[i].y;
+                ++num;
+//printf("getIntersectionPoints STEP 2 num=%d\n", num);
             }
         }
     }
@@ -183,16 +203,20 @@ inline int FUNC(getIntersectionPoints)(const POINT_2D* pts1/*[4]*/, const POINT_
         for (int i = 0; i < 4; i++) {
             POINT_2D AP;
             AP.x = pts2[i].x - pts1[0].x;
-            AP.x = pts2[i].y - pts1[0].y;
+            AP.y = pts2[i].y - pts1[0].y;
 
             float APdotAB = FUNC_CALL(dot2D)(AP, AB);
             float APdotAD = -FUNC_CALL(dot2D)(AP, DA);
 
             if ((APdotAB >= 0) && (APdotAD >= 0) && (APdotAB <= ABdotAB) && (APdotAD <= ADdotAD)) {
-                intersections[num++] = pts2[i];
+                intersections[num].x = pts2[i].x;
+                intersections[num].y = pts2[i].y;
+                ++num;
+//printf("getIntersectionPoints STEP 3 num=%d\n", num);
             }
         }
     }
+printf("getIntersectionPoints return num=%d\n", num);
 
     return num;
 }
@@ -208,23 +232,27 @@ inline void FUNC(sortPoints)(POINT_2D* arr, int l, int h)
 {
     for (int i = 0; i < h-l; i++) {
         bool swapped = false;
+
         for (int j = l; j < h-i; j++) {
-            bool need_swap = false;
+            bool is_less = false;
             const float temp = FUNC_CALL(cross2D)(arr[j], arr[j+1]);
             if (fabs(temp) < 1e-6f) {
-                need_swap = FUNC_CALL(dot2D)(arr[j], arr[j]) < FUNC_CALL(dot2D)(arr[j+1], arr[j+1]);
+                is_less = FUNC_CALL(dot2D)(arr[j], arr[j]) < FUNC_CALL(dot2D)(arr[j+1], arr[j+1]);
             } else {
-                need_swap = temp > 0;
+                is_less = temp > 0;
             }
 
-            if (need_swap) {
-                FUNC_CALL(swapPoints)(&arr[j], &arr[j+1]);
-                swapped = true;
+            if (is_less) {
+                continue;
             }
+
+            FUNC_CALL(swapPoints)(&arr[j], &arr[j+1]);
+            swapped = true;
         }
 
-        if (!swapped)
+        if (!swapped) {
             break;
+        }
     }
 }
 
@@ -244,6 +272,7 @@ inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in,
         }
     }
     const POINT_2D start = p[t];  // starting point
+printf("convex_hull_graham num_in = %d t = %d start = %f, %f\n", num_in, t, start.x, start.y);
 
     // Step 2:
     // Subtract starting point from every points (for sorting in the next step)
@@ -264,7 +293,19 @@ inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in,
         dist[i] = FUNC_CALL(dot2D)(q[i], q[i]);
     }
 
-    FUNC_CALL(sortPoints)(q, 1, num_in);
+printf("before sort:\n");
+for (int zzz = 0; zzz < num_in; ++zzz) {
+    printf("q[%d]=(%f, %f) ", zzz, q[zzz].x, q[zzz].y);
+}
+printf("\n");
+
+    FUNC_CALL(sortPoints)(q, 1, num_in - 1);
+
+printf("after sort:\n");
+for (int zzz = 0; zzz < num_in; ++zzz) {
+    printf("q[%d]=(%f, %f) ", zzz, q[zzz].x, q[zzz].y);
+}
+printf("\n");
 
     // compute distance to origin after sort, since the points are now different.
     for (int i = 0; i < num_in; i++) {
@@ -284,8 +325,12 @@ inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in,
         // We reach the end, which means the convex hull is just one point
         q[0].x = p[t].x;
         q[0].y = p[t].y;
+printf("convex_hull_graham k == num_in\n");
         return 1;
     }
+
+printf("convex_hull_graham k = %d q[k]=%f, %f\n", k, q[k].x, q[k].y);
+
     q[1].x = q[k].x;
     q[1].y = q[k].y;
     int m = 2;  // 2 points in the stack
@@ -302,13 +347,19 @@ inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in,
         diff1.y = q[i].y - q[m - 2].y;
         diff2.x = q[m - 1].x - q[m - 2].x;
         diff2.y = q[m - 1].y - q[m - 2].y;
+printf("convex_hull_graham i=%d m=%d diff1 = %f, %f diff2 = %f, %f\n", i, m, diff1.x, diff1.y, diff2.x, diff2.y);
 
-        while (m > 1 && FUNC_CALL(cross2D)(diff1, diff2) >= 0) {
+        float cross2d_diff = FUNC_CALL(cross2D)(diff1, diff2);
+//printf("convex_hull_graham cross2d_diff=%f\n", cross2d_diff);
+
+        while (m > 1 && cross2d_diff >= 0) {
             m--;
+//printf("convex_hull_graham m-- m = %d\n", m);
         }
         q[m].x = q[i].x;
         q[m].y = q[i].y;
         ++m;
+//printf("convex_hull_graham ++m m = %d\n", m);
     }
 
     // Step 6 (Optional):
@@ -322,11 +373,13 @@ inline int FUNC(convex_hull_graham)(const POINT_2D* p/*[24]*/, const int num_in,
             q[i].y += start.y;
         }
     }
+printf("convex_hull_graham return m = %d\n", m);
 
     return m;
 }
 
 inline float FUNC(polygon_area)(const POINT_2D* q/*[24]*/, const int m) {
+printf("polygon_area m=%d\n", m);
     if (m <= 2) {
         return 0.f;
     }
@@ -336,9 +389,12 @@ inline float FUNC(polygon_area)(const POINT_2D* q/*[24]*/, const int m) {
         POINT_2D diff1, diff2;
         diff1.x = q[i].x - q[0].x;
         diff1.y = q[i].y - q[0].y;
-        diff2.x = q[i + 1].x- q[0].x;
+        diff2.x = q[i + 1].x - q[0].x;
         diff2.y = q[i + 1].y - q[0].y;
-        area += fabs(FUNC_CALL(cross2D)(diff1, diff2));
+        float cross_result = FUNC_CALL(cross2D)(diff1, diff2);
+printf("polygon_area i=%d cross_result=%f\n", i, cross_result);
+
+        area += fabs(cross_result);
     }
 
     return area / 2.0f;
@@ -349,14 +405,31 @@ inline float FUNC(rotatedBoxesIntersection)(const COORD_TYPE_4 boxA, const INPUT
     // There are up to 4 x 4 + 4 + 4 = 24 intersections (including dups) returned
     // from get_intersection_points
     POINT_2D intersectPts[24], orderedPts[24];
-
+//printf("rotatedBoxesIntersection angleA=%f angleB=%f \n", angleA, angleB);
     POINT_2D pts1[4];
     POINT_2D pts2[4];
     FUNC_CALL(getRotatedVertices)(boxA, angleA, pts1);
+/*
+printf("boxA = %f %f %f %f %f\n", boxA[0], boxA[1], boxA[2], boxA[3], angleA);
+printf("pts1[0] = %f %f ", pts1[0].x, pts1[0].y);
+printf("pts1[1] = %f %f ", pts1[1].x, pts1[1].y);
+printf("pts1[2] = %f %f ", pts1[2].x, pts1[2].y);
+printf("pts1[3] = %f %f\n", pts1[3].x, pts1[3].y);
+*/
+
     FUNC_CALL(getRotatedVertices)(boxB, angleB, pts2);
+/*
+printf("boxB = %f %f %f %f %f\n", boxB[0], boxB[1], boxB[2], boxB[3], angleB);
+printf("pts2[0] = %f %f ", pts2[0].x, pts2[0].y);
+printf("pts2[1] = %f %f ", pts2[1].x, pts2[1].y);
+printf("pts2[2] = %f %f ", pts2[2].x, pts2[2].y);
+printf("pts2[3] = %f %f\n", pts2[3].x, pts2[3].y);
+*/
 
     // Find points defining area of the boxes intersection
     int num = FUNC_CALL(getIntersectionPoints)(pts1, pts2, intersectPts);
+printf("rotatedBoxesIntersection num=%d\n", num);
+
 
     if (num <= 2) {
         return 0.f;
@@ -366,7 +439,6 @@ inline float FUNC(rotatedBoxesIntersection)(const COORD_TYPE_4 boxA, const INPUT
     // the contour area.
     int num_convex = FUNC_CALL(convex_hull_graham)(intersectPts, num, orderedPts, true);
     return FUNC_CALL(polygon_area)(orderedPts, num_convex);
-    return 0.0f;
 }
 
 
@@ -380,6 +452,7 @@ inline float FUNC(intersectionOverUnion)(const COORD_TYPE_4 boxA, const INPUT0_T
         return 0.0f;
 
     const float intersection_area = FUNC_CALL(rotatedBoxesIntersection)(boxA, angleA, boxB, angleB);
+printf("intersectionOverUnion intersection_area=%f\n", intersection_area);
 
     const float union_area = areaA + areaB - intersection_area;
     return intersection_area / union_area;
@@ -744,13 +817,16 @@ KERNEL (non_max_suppression_ref_stage_2)(
         scale = -0.5f / SOFT_NMS_SIGMA_VAL;
     }
     #endif
+//printf("scale=%f\n", scale);
 
     __global SBOX_INFO *sortedBoxList = (__global SBOX_INFO*)&buffer0[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     const int kSortedBoxNum = buffer2[batchId * NUM_CLASSES + classId];
+//printf("kSortedBoxNum=%d\n", kSortedBoxNum);
 
     __global BOX_INFO *selectedBoxList = (__global BOX_INFO*)&buffer1[(batchId * NUM_CLASSES + classId) * BUFFER_STRIDE];
     int selectedBoxNum = 0;
     const int kNumSelectPerClass = NUM_SELECT_PER_CLASS_VAL;
+//printf("kNumSelectPerClass=%d\n", kNumSelectPerClass);
     int i = 0;
     while (i < kSortedBoxNum && selectedBoxNum < kNumSelectPerClass) {
         SBOX_INFO next_candidate = sortedBoxList[i];
@@ -758,7 +834,7 @@ KERNEL (non_max_suppression_ref_stage_2)(
         const COORD_TYPE_4 next_candidate_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, next_candidate.boxId);
 
         #ifdef ROTATION
-        const INPUT0_TYPE next_candidate_angle = boxes[INPUT0_GET_INDEX(batchId, next_candidate.boxId, 5, 0)];
+        const INPUT0_TYPE next_candidate_angle = boxes[INPUT0_GET_INDEX(batchId, next_candidate.boxId, 4, 0)];
         #endif
 
         ++i;
@@ -768,7 +844,7 @@ KERNEL (non_max_suppression_ref_stage_2)(
             const COORD_TYPE_4 selected_box_coord = FUNC_CALL(getBoxCoords)(boxes, batchId, selectedBoxList[j].boxId);
 
             #ifdef ROTATION
-            const INPUT0_TYPE selected_box_angle = boxes[INPUT0_GET_INDEX(batchId, selectedBoxList[j].boxId, 5, 0)];
+            const INPUT0_TYPE selected_box_angle = boxes[INPUT0_GET_INDEX(batchId, selectedBoxList[j].boxId, 4, 0)];
             const float iou = FUNC_CALL(intersectionOverUnion)(next_candidate_coord, next_candidate_angle,
                     selected_box_coord, selected_box_angle);
             #else
@@ -776,6 +852,7 @@ KERNEL (non_max_suppression_ref_stage_2)(
             #endif
 
             next_candidate.score *= FUNC_CALL(scaleIOU)(iou, IOU_THRESHOLD_VAL, scale);
+printf("i=%d j=%d iou=%f next_candidate.score=%f\n", i, j, iou, next_candidate.score);
 
             if (iou >= IOU_THRESHOLD_VAL && !(SOFT_NMS_SIGMA_VAL > 0.0f)) {
                 should_hard_suppress = true;
@@ -799,6 +876,9 @@ KERNEL (non_max_suppression_ref_stage_2)(
                 selectedBoxList[selectedBoxNum] = binfo;
                 ++selectedBoxNum;
 
+                printf("selectedBoxNum=%d batchId=%d classId=%d boxId=%d next_candidate.score=%f\n",
+                       selectedBoxNum, batchId, classId, next_candidate.boxId, next_candidate.score);
+
                 continue;
             }
 
@@ -809,7 +889,7 @@ KERNEL (non_max_suppression_ref_stage_2)(
             }
         }
     }
-
+printf("selectedBoxNum=%d\n", selectedBoxNum);
     // Set pad value to indicate the end of selected box list.
     if (selectedBoxNum < NUM_BOXES) {
         int b = selectedBoxNum;
@@ -862,6 +942,8 @@ KERNEL (non_max_suppression_ref_stage_3)(
 #endif
 
     unroll_for (int i = 0; i < outputIdx; i++) {
+//        printf("i=%d batchId=%d classId=%d boxId=%d\n",
+//               i, sortedBoxList[i].batchId, sortedBoxList[i].classId, sortedBoxList[i].boxId);
         output[OUTPUT_GET_INDEX(i, 0, 0, 0)] = sortedBoxList[i].batchId;
         output[OUTPUT_GET_INDEX(i, 1, 0, 0)] = sortedBoxList[i].classId;
         output[OUTPUT_GET_INDEX(i, 2, 0, 0)] = sortedBoxList[i].boxId;
@@ -902,6 +984,9 @@ KERNEL (non_max_suppression_ref_stage_3)(
         selected_scores[OUTPUT1_GET_INDEX(i, 2, 0, 0)] = -1;
     }
 #endif
+
+int z = OUTPUT_NUM;
+printf("OUTPUT_NUM=%d, outputIdx=%d\n", z, outputIdx);
 
 #ifdef THIRD_OUTPUT_TYPE
     valid_outputs[THIRD_OUTPUT_GET_INDEX(0, 0, 0, 0)] = TO_THIRD_OUTPUT_TYPE(outputIdx);

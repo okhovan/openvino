@@ -82,7 +82,7 @@ struct non_max_suppression_basic : public testing::Test {
     };
 
     const std::vector<DataType> rotated_boxes_data = {
-        DataType(7.f), DataType(4.f),  DataType(8.f), DataType(7.f), DataType(0.5f),
+        DataType(337.f), DataType(334.f),  DataType(338.f), DataType(337.f), DataType(0.5f),
         DataType(4.f), DataType(7.f), DataType(9.f), DataType(11.f),  DataType(0.6f),
         DataType(4.f), DataType(8.f), DataType(10.f), DataType(12.f),  DataType(0.3f),
         DataType(2.f),  DataType(5.f),  DataType(13.f), DataType(7.f), DataType(0.6f)
@@ -686,21 +686,38 @@ struct non_max_suppression_basic : public testing::Test {
         topo.add(data("num_per_class", num_per_class_mem));
         topo.add(data("iou_threshold", iou_threshold_mem));
         topo.add(data("score_threshold", score_threshold_mem));
+
+        memory::ptr selected_scores_mem = this->get_selected_scores_mem(engine);
+        memory::ptr valid_outputs_mem = this->get_valid_outputs_mem(engine);
+
+        topo.add(mutable_data("selected_scores", selected_scores_mem));
+        topo.add(mutable_data("valid_outputs", valid_outputs_mem));
+
         topo.add(
                 reorder("reformat_boxes", input_info("boxes"), this->layout_format, this->data_type),
                 reorder("reformat_scores", input_info("scores"), this->layout_format, this->data_type));
         auto nms = non_max_suppression("nms",
                                     input_info("reformat_boxes"),
                                     input_info("reformat_scores"),
-                                    this->batch_size * this->classes_num * this->boxes_num,
+                                    this->rotated_batch_size * this->rotated_classes_num * this->rotated_boxes_num,
                                     false,
                                     false,
                                     "num_per_class",
                                     "iou_threshold",
-                                    "score_threshold");
+                                    "score_threshold",
+                                    "",
+                                    "selected_scores",
+                                    "valid_outputs");
         nms.rotation = non_max_suppression::Rotation::CLOCKWISE;
+/*
+        const auto output_data_type = this->data_type;
+        nms.output_data_types = {optional_data_type{}, optional_data_type{output_data_type}, optional_data_type{}};
+        nms.output_paddings = {padding(), padding(), padding()};
+*/
         topo.add(nms);
-        topo.add(reorder("plane_nms", input_info("nms"), format::bfyx, cldnn::data_types::i32));
+        topo.add(reorder("plane_nms", input_info("nms", 0), format::bfyx, cldnn::data_types::i32));
+        topo.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, this->data_type));
+        topo.add(reorder("plane_outputs", input_info("plane_outputs"), format::bfyx, cldnn::data_types::i32));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -715,26 +732,26 @@ struct non_max_suppression_basic : public testing::Test {
 
         auto result = net->execute();
 
-/*
-            .expectedSelectedScores(
-                reference_tests::Tensor(ET_TH,
-                                        {3, 3},
-                                        std::vector<T_TH>{0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65}))
-            .expectedValidOutputs(reference_tests::Tensor(ET_IND, {1}, std::vector<T_IND>{3}))
-*/
+        std::vector<int> expected_indices = {0, 0, 3, 0, 0, 1, 0, 0, 0, 333, 333, 333};
+        std::vector<float> expected_scores = {0.0, 0.0, 0.96, 0.0, 0.0, 0.7, 0.0, 0.0, 0.65, 999, 999, 999};
+        const int expected_valid_outputs = static_cast<int>(expected_indices.size()) / 3;
 
-        std::vector<int> expected_out = {
-            0,         0,         3,         0,         0,         1,         0,         0,         0,
-            this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad,
-            this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad,
-            this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad, this->pad};
+        //const auto valid_outputs_mem = result.at("plane_outputs").get_memory();
+        cldnn::mem_lock<int> valid_outputs_ptr(valid_outputs_mem, get_test_stream());
 
-        const auto out_mem = result.at("plane_nms").get_memory();
-        const cldnn::mem_lock<int> out_ptr(out_mem, get_test_stream());
+        EXPECT_EQ(expected_valid_outputs, valid_outputs_ptr[0]);
 
-        ASSERT_EQ(expected_out.size(), out_ptr.size());
-        for (size_t i = 0; i < expected_out.size(); ++i) {
-            EXPECT_EQ(expected_out[i], out_ptr[i]) << "at i = " << i;
+        const auto indices_mem = result.at("plane_nms").get_memory();
+        const cldnn::mem_lock<int> indices_ptr(indices_mem, get_test_stream());
+        EXPECT_EQ(expected_indices.size(), indices_ptr.size());
+
+        //const auto selected_scores_mem = result.at("plane_scores").get_memory();
+        const cldnn::mem_lock<float> selected_scores_ptr(selected_scores_mem, get_test_stream());
+        EXPECT_EQ(expected_scores.size(), selected_scores_ptr.size());
+
+        for (size_t i = 0; i < /*expected_*/indices_ptr.size(); ++i) {
+            EXPECT_EQ(expected_indices[i], indices_ptr[i]) << "at i = " << i;
+            EXPECT_FLOAT_EQ(expected_scores[i], selected_scores_ptr[i]) << "at i = " << i;
         }
     }
 
