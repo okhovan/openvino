@@ -171,7 +171,7 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
         }
     }
     auto& start = p[t];  // starting point
-std::cout << "convex_hull_graham num_in = " << num_in << " t = " << t << " start = " << start.x << " , " << start.y << std::endl;
+//std::cout << "convex_hull_graham num_in = " << num_in << " t = " << t << " start = " << start.x << " , " << start.y << std::endl;
 
     // Step 2:
     // Subtract starting point from every points (for sorting in the next step)
@@ -191,11 +191,11 @@ std::cout << "convex_hull_graham num_in = " << num_in << " t = " << t << " start
         dist[i] = dot_2d(q[i], q[i]);
     }
 
-std::cout << "before sort:" << std::endl;
-for (int zzz = 0; zzz < num_in; ++zzz) {
-    std::cout << "q[" << zzz << "]=(" << q[zzz].x << ", " << q[zzz].y << ") ";
-}
-std::cout << std::endl;
+//std::cout << "before sort:" << std::endl;
+//for (int zzz = 0; zzz < num_in; ++zzz) {
+//    std::cout << "q[" << zzz << "]=(" << q[zzz].x << ", " << q[zzz].y << ") ";
+//}
+//std::cout << std::endl;
 
     std::sort(q + 1, q + num_in, [](const Point2D& A, const Point2D& B) -> bool {
         float temp = cross_2d(A, B);
@@ -206,11 +206,11 @@ std::cout << std::endl;
         }
     });
 
-std::cout << "after sort:" << std::endl;
-for (int zzz = 0; zzz < num_in; ++zzz) {
-    std::cout << "q[" << zzz << "]=(" << q[zzz].x << ", " << q[zzz].y << ") ";
-}
-std::cout << std::endl;
+//std::cout << "after sort:" << std::endl;
+//for (int zzz = 0; zzz < num_in; ++zzz) {
+//    std::cout << "q[" << zzz << "]=(" << q[zzz].x << ", " << q[zzz].y << ") ";
+//}
+//std::cout << std::endl;
 
     // compute distance to origin after sort, since the points are now different.
     for (int i = 0; i < num_in; i++) {
@@ -232,7 +232,7 @@ std::cout << std::endl;
         return 1;
     }
 
-    std::cout << "convex_hull_graham k=" << k << " q[k] " << q[k].x << " , " << q[k].y << std::endl;
+    //std::cout << "convex_hull_graham k=" << k << " q[k] " << q[k].x << " , " << q[k].y << std::endl;
 
     q[1] = q[k];
     int m = 2;  // 2 points in the stack
@@ -247,17 +247,17 @@ std::cout << std::endl;
 
         Point2D diff1 = q[i] - q[m - 2];
         Point2D diff2 = q[m - 1] - q[m - 2];
-std::cout << "convex_hull_graham i=" << i << " m=" << m << " diff1 = " << diff1.x << " , " << diff1.y
-          << " diff2 = " << diff2.x << " , " << diff2.y << std::endl;
+//std::cout << "convex_hull_graham i=" << i << " m=" << m << " diff1 = " << diff1.x << " , " << diff1.y
+//          << " diff2 = " << diff2.x << " , " << diff2.y << std::endl;
 
         float cross2d_diff = cross_2d(diff1, diff2);
-std::cout << "convex_hull_graham cross2d_diff = " << cross2d_diff << std::endl;
+//std::cout << "convex_hull_graham cross2d_diff = " << cross2d_diff << std::endl;
         while (m > 1 && cross2d_diff >= 0) {
             m--;
-std::cout << "convex_hull_graham m-- m = " << m << std::endl;
+//std::cout << "convex_hull_graham m-- m = " << m << std::endl;
         }
         q[m++] = q[i];
-std::cout << "convex_hull_graham ++m m = " << m << std::endl;
+//std::cout << "convex_hull_graham ++m m = " << m << std::endl;
     }
 
     // Step 6 (Optional):
@@ -272,7 +272,7 @@ std::cout << "convex_hull_graham ++m m = " << m << std::endl;
     }
 
 
-std::cout << "convex_hull_graham return m = " << m << std::endl;
+//std::cout << "convex_hull_graham return m = " << m << std::endl;
     return m;
 }
 

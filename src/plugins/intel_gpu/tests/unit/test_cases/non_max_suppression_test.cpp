@@ -82,7 +82,7 @@ struct non_max_suppression_basic : public testing::Test {
     };
 
     const std::vector<DataType> rotated_boxes_data = {
-        DataType(337.f), DataType(334.f),  DataType(338.f), DataType(337.f), DataType(0.5f),
+        DataType(7.f), DataType(4.f),  DataType(8.f), DataType(7.f), DataType(0.5f),
         DataType(4.f), DataType(7.f), DataType(9.f), DataType(11.f),  DataType(0.6f),
         DataType(4.f), DataType(8.f), DataType(10.f), DataType(12.f),  DataType(0.3f),
         DataType(2.f),  DataType(5.f),  DataType(13.f), DataType(7.f), DataType(0.6f)
