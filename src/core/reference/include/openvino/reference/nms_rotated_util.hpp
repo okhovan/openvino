@@ -57,6 +57,7 @@ static inline void get_rotated_vertices(const RotatedBox& box, Point2D (&pts)[4]
     auto cosTheta2 = std::cos(theta) * 0.5f;
     auto sinTheta2 = std::sin(theta) * 0.5f;
 
+ std::cout << "theta = " << theta << " cosTheta2 = " << cosTheta2 << " sinTheta2 = " << sinTheta2 << std::endl;
     // y: top --> down; x: left --> right
     // Left-Down
     pts[0].x = box.x_ctr - sinTheta2 * box.h - cosTheta2 * box.w;
@@ -92,7 +93,7 @@ static inline int get_intersection_points(const Point2D (&pts1)[4],
         for (int j = 0; j < 4; j++) {
             // Solve for 2x2 Ax=b
             float det = cross_2d(vec2[j], vec1[i]);
-//std::cout << "getIntersectionPoints i=" << i << " j=" << j << " det=" << det << std::endl;
+std::cout << "getIntersectionPoints i=" << i << " j=" << j << " det=" << det << std::endl;
 
             // This takes care of parallel lines
             if (std::abs(det) <= 1e-14f) {
@@ -103,7 +104,7 @@ static inline int get_intersection_points(const Point2D (&pts1)[4],
 
             auto t1 = cross_2d(vec2[j], vec12) / det;
             auto t2 = cross_2d(vec1[i], vec12) / det;
-//std::cout << "getIntersectionPoints i=" << i << " j=" << j << " det=" << det << " t1=" << t1 << " t2=" << t2 << std::endl;
+std::cout << "getIntersectionPoints i=" << i << " j=" << j << " det=" << det << " t1=" << t1 << " t2=" << t2 << std::endl;
 
             if (t1 >= 0.0f && t1 <= 1.0f && t2 >= 0.0f && t2 <= 1.0f) {
                 intersections[num++] = pts1[i] + vec1[i] * t1;
@@ -171,7 +172,7 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
         }
     }
     auto& start = p[t];  // starting point
-//std::cout << "convex_hull_graham num_in = " << num_in << " t = " << t << " start = " << start.x << " , " << start.y << std::endl;
+std::cout << "convex_hull_graham num_in = " << num_in << " t = " << t << " start = " << start.x << " , " << start.y << std::endl;
 
     // Step 2:
     // Subtract starting point from every points (for sorting in the next step)
@@ -191,11 +192,11 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
         dist[i] = dot_2d(q[i], q[i]);
     }
 
-//std::cout << "before sort:" << std::endl;
+std::cout << "before sort:" << std::endl;
 //for (int zzz = 0; zzz < num_in; ++zzz) {
 //    std::cout << "q[" << zzz << "]=(" << q[zzz].x << ", " << q[zzz].y << ") ";
 //}
-//std::cout << std::endl;
+std::cout << std::endl;
 
     std::sort(q + 1, q + num_in, [](const Point2D& A, const Point2D& B) -> bool {
         float temp = cross_2d(A, B);
@@ -206,11 +207,11 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
         }
     });
 
-//std::cout << "after sort:" << std::endl;
+std::cout << "after sort:" << std::endl;
 //for (int zzz = 0; zzz < num_in; ++zzz) {
 //    std::cout << "q[" << zzz << "]=(" << q[zzz].x << ", " << q[zzz].y << ") ";
 //}
-//std::cout << std::endl;
+std::cout << std::endl;
 
     // compute distance to origin after sort, since the points are now different.
     for (int i = 0; i < num_in; i++) {
@@ -232,7 +233,7 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
         return 1;
     }
 
-    //std::cout << "convex_hull_graham k=" << k << " q[k] " << q[k].x << " , " << q[k].y << std::endl;
+    std::cout << "convex_hull_graham k=" << k << " q[k] " << q[k].x << " , " << q[k].y << std::endl;
 
     q[1] = q[k];
     int m = 2;  // 2 points in the stack
@@ -247,17 +248,17 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
 
         Point2D diff1 = q[i] - q[m - 2];
         Point2D diff2 = q[m - 1] - q[m - 2];
-//std::cout << "convex_hull_graham i=" << i << " m=" << m << " diff1 = " << diff1.x << " , " << diff1.y
-//          << " diff2 = " << diff2.x << " , " << diff2.y << std::endl;
+std::cout << "convex_hull_graham i=" << i << " m=" << m << " diff1 = " << diff1.x << " , " << diff1.y
+          << " diff2 = " << diff2.x << " , " << diff2.y << std::endl;
 
         float cross2d_diff = cross_2d(diff1, diff2);
-//std::cout << "convex_hull_graham cross2d_diff = " << cross2d_diff << std::endl;
+std::cout << "convex_hull_graham cross2d_diff = " << cross2d_diff << std::endl;
         while (m > 1 && cross2d_diff >= 0) {
             m--;
-//std::cout << "convex_hull_graham m-- m = " << m << std::endl;
+std::cout << "convex_hull_graham m-- m = " << m << std::endl;
         }
         q[m++] = q[i];
-//std::cout << "convex_hull_graham ++m m = " << m << std::endl;
+std::cout << "convex_hull_graham ++m m = " << m << std::endl;
     }
 
     // Step 6 (Optional):
@@ -272,7 +273,7 @@ static inline int convex_hull_graham(const Point2D (&p)[24],
     }
 
 
-//std::cout << "convex_hull_graham return m = " << m << std::endl;
+std::cout << "convex_hull_graham return m = " << m << std::endl;
     return m;
 }
 
@@ -283,7 +284,9 @@ static inline float polygon_area(const Point2D (&q)[24], const int& m) {
 
     float area = 0.f;
     for (int i = 1; i < m - 1; i++) {
-        area += std::abs(cross_2d(q[i] - q[0], q[i + 1] - q[0]));
+        const auto cross_result = cross_2d(q[i] - q[0], q[i + 1] - q[0]);
+std::cout << "polygon_area i=" << i << " cross_result=" << cross_result << std::endl;
+        area += std::abs(cross_result);
     }
 
     return area / 2.0f;
@@ -297,7 +300,18 @@ static inline float rotated_boxes_intersection(const RotatedBox& box1, const Rot
     Point2D pts1[4];
     Point2D pts2[4];
     get_rotated_vertices(box1, pts1);
+std::cout << "boxA = " << box1.x_ctr << " " << box1.y_ctr << " " << box1.w << " " << box1.h << " " << box1.a << std::endl;
+for(size_t i =0; i < 4; ++i) {
+    std::cout << "pts1["<< i <<"] = " << pts1[i].x << " " << pts1[i].y << " ";
+}
+std::cout << std::endl;
+
     get_rotated_vertices(box2, pts2);
+std::cout << "boxB = " << box2.x_ctr << " " << box2.y_ctr << " " << box2.w << " " << box2.h << " " << box2.a << std::endl;
+for(size_t i =0; i < 4; ++i) {
+    std::cout << "pts2["<< i <<"] = " << pts2[i].x << " " << pts2[i].y << " ";
+}
+std::cout << std::endl;
 
     // Find points defining area of the boxes intersection
     int num = get_intersection_points(pts1, pts2, intersectPts);

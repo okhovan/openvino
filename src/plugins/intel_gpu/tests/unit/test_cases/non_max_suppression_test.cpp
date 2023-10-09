@@ -1089,6 +1089,38 @@ std::vector<NmsRotatedParams<T, T_IND>> getNmsRotatedParams(bool is_caching_test
              std::vector<T_IND>{0, 0, 3, 0, 0, 0},
              std::vector<T>{0.0, 0.0, 0.96, 0.0, 0.0, 0.65},
             },
+            {"negative_cw",
+             1, 2, 1,
+             std::vector<T>{/*0*/ 6.0, 34.0, 4.0, 8.0, -0.7854, /*1*/ 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, true,
+             std::vector<T_IND>{0, 0, 0, 0, 0, 1},
+             std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}
+            },
+            {"negative_ccw",
+             1, 2, 1,
+             std::vector<T>{/*0*/ 6.0, 34.0, 4.0, 8.0, -0.7854, /*1*/ 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, false,
+             std::vector<T_IND>{0, 0, 0},
+             std::vector<T>{0.0, 0.0, 0.8}
+            },
+            {"positive_ccw",
+             1, 2, 1,
+             std::vector<T>{/*0*/ 6.0, 34.0, 4.0, 8.0, 0.7854, /*1*/ 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, false,
+             std::vector<T_IND>{0, 0, 0, 0, 0, 1},
+             std::vector<T>{0.0, 0.0, 0.8, 0.0, 0.0, 0.7}
+            },
+            {"positive_cw",
+             1, 2, 1,
+             std::vector<T>{/*0*/ 6.0, 34.0, 4.0, 8.0, 0.7854, /*1*/ 9.0, 32, 2.0, 4.0, 0.0},
+             std::vector<T>{0.8, 0.7},
+             5000, 0.1f, 0.0f, false, true,
+             std::vector<T_IND>{0, 0, 0},
+             std::vector<T>{0.0, 0.0, 0.8}
+            }
     };
 
     return params;

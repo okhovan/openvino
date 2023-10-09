@@ -17,6 +17,7 @@ namespace nms_detail {
 using iou_rotated::RotatedBox;
 static float rotated_intersection_over_union(const RotatedBox& boxI, const RotatedBox& boxJ) {
     const auto intersection = iou_rotated::rotated_boxes_intersection(boxI, boxJ);
+
     const auto areaI = boxI.w * boxI.h;
     const auto areaJ = boxJ.w * boxJ.h;
 
@@ -25,6 +26,7 @@ static float rotated_intersection_over_union(const RotatedBox& boxI, const Rotat
     }
 
     const auto union_area = areaI + areaJ - intersection;
+std::cout << "intersectionOverUnion intersection_area=" << intersection << " union_area=" << union_area << std::endl;
     return intersection / union_area;
 }
 
@@ -164,6 +166,7 @@ void nms_rotated(const float* boxes_data,
                     // The main difference between NMS and NMSRotated is the calculation of iou for rotated boxes
                     float iou = nms_detail::rotated_intersection_over_union(next_candidate.box, selected[j].box);
                     next_candidate.score *= get_score_scale(iou);
+std::cout << "i=?" << " j=" << j << " iou=" << iou << " next_candidate.score=" << next_candidate.score << std::endl;
 
                     if ((iou > iou_threshold) && !soft_nms) {
                         should_hard_suppress = true;
