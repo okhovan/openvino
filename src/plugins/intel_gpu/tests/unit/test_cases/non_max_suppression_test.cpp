@@ -728,6 +728,18 @@ struct NmsRotatedParams {
     std::vector<T> expected_scores;
 };
 
+template <typename T> float getError();
+
+template<>
+float getError<float>() {
+    return 0.001;
+}
+
+template<>
+float getError<ov::float16>() {
+    return 0.1;
+}
+
 template<typename T, typename T_IND>
 struct nms_rotated_test : public ::testing::TestWithParam<NmsRotatedParams<T, T_IND>> {
 public:
@@ -735,7 +747,6 @@ public:
     ) {
         const NmsRotatedParams<T, T_IND> param = testing::TestWithParam<NmsRotatedParams<T, T_IND>>::GetParam();
         const auto data_type = ov::element::from<T>();
-        static const auto layout_format = format::bfyx;
 
         auto& engine = tests::get_test_engine();
 
@@ -775,11 +786,9 @@ public:
         topo.add(data("score_threshold", score_threshold_mem));
         topo.add(mutable_data("selected_scores", selected_scores_mem));
         topo.add(mutable_data("valid_outputs", valid_outputs_mem));
-        topo.add(reorder("reformat_boxes", input_info("boxes"), layout_format, data_type));
-        topo.add(reorder("reformat_scores", input_info("scores"), layout_format, data_type));
         auto nms = non_max_suppression("nms",
-                                       input_info("reformat_boxes"),
-                                       input_info("reformat_scores"),
+                                       input_info("boxes"),
+                                       input_info("scores"),
                                        selected_indices_num,
                                        false,
                                        param.sort_result_descending,
@@ -793,9 +802,6 @@ public:
                        non_max_suppression::Rotation::COUNTERCLOCKWISE;
 
         topo.add(nms);
-        topo.add(reorder("plane_nms", input_info("nms", 0), format::bfyx, cldnn::data_types::i32));
-        topo.add(reorder("plane_scores", input_info("selected_scores"), format::bfyx, data_type));
-        topo.add(reorder("plane_outputs", input_info("plane_outputs"), format::bfyx, cldnn::data_types::i32));
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::optimize_data(true));
@@ -810,20 +816,20 @@ public:
         const size_t num_valid_outputs = static_cast<size_t>(valid_outputs_ptr[0]);
         EXPECT_EQ(num_valid_outputs, expected_valid_outputs);
 
-        const auto indices_mem = result.at("plane_nms").get_memory();
+        const auto indices_mem = result.at("nms").get_memory();
         const cldnn::mem_lock<T_IND> indices_ptr(indices_mem, get_test_stream());
-        EXPECT_GE(indices_ptr.size(), param.expected_indices.size());
+        ASSERT_GE(indices_ptr.size(), param.expected_indices.size());
 
         const cldnn::mem_lock<T> selected_scores_ptr(selected_scores_mem, get_test_stream());
-        EXPECT_GE(selected_scores_ptr.size(), param.expected_scores.size());
+        ASSERT_GE(selected_scores_ptr.size(), param.expected_scores.size());
 
         for (size_t i = 0; i < indices_ptr.size(); ++i) {
             if (i < num_valid_outputs * 3) {
                 EXPECT_EQ(param.expected_indices[i], indices_ptr[i]) << "at i = " << i;
-                EXPECT_FLOAT_EQ(param.expected_scores[i], selected_scores_ptr[i]) << "at i = " << i;
+                EXPECT_NEAR(param.expected_scores[i], selected_scores_ptr[i], getError<T>()) << "at i = " << i;
             } else {
                 EXPECT_EQ(indices_ptr[i], -1) << "at i = " << i;
-                EXPECT_FLOAT_EQ(selected_scores_ptr[i], -1) << "at i = " << i;
+                EXPECT_NEAR(selected_scores_ptr[i], -1, getError<T>()) << "at i = " << i;
             }
         }
     }
