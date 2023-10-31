@@ -44,4 +44,27 @@ INSTANTIATE_TEST_SUITE_P(smoke_CumSum, CumSumLayerTest,
                                 ::testing::ValuesIn(reverse),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         CumSumLayerTest::getTestCaseName);
+
+
+std::vector<std::vector<ov::Shape>> inShapesWithBigDims = {
+        {{32, 32}},
+        {{32, 32, 32}},
+        {{32, 32, 32, 32}},
+/*
+        {{17, 17}},
+        {{17, 17, 17}},
+        {{17, 17, 17, 17}},
+*/
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CumSumWithBigDims, CumSumLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesWithBigDims)),
+                                ::testing::Values(ov::element::f32),
+                                ::testing::ValuesIn(axes),
+                                ::testing::ValuesIn(exclusive),
+                                ::testing::ValuesIn(reverse),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        CumSumLayerTest::getTestCaseName);
+
 }  // namespace

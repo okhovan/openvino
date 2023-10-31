@@ -25,5 +25,6 @@ protected:
     KernelsPriority GetKernelsPriority(const Params& params, const optional_params& options) const override;
     MultiDispatchData SetDefaultForMulti(const cum_sum_params& params) const;
     KernelsData GetKernelsData(const Params& params, const optional_params& options) const override;
+    bool Validate(const Params& p, const optional_params& o) const override;
 };
 }  // namespace kernel_selector

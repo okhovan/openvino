@@ -348,3 +348,48 @@ TEST(cum_sum_gpu_fp32, dynamic) {
         ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }
+
+TEST(cum_sum, bigshape) {
+    auto& engine = get_test_engine();
+
+    const int num_items = 64;
+    std::vector<float> input_data;
+    input_data.resize(num_items);
+    std::iota(input_data.begin(), input_data.end(), 1);
+/*
+    for(size_t i = 0; i < num_items; ++i) {
+        input_data.push_back(static_cast<float>(i));
+    }
+*/
+    const tensor shape{ num_items, 1, 1, 1 };
+    const layout in_layout{data_types::f32, format::bfyx, shape};
+    const auto input = engine.allocate_memory(in_layout);
+
+    set_values(input, input_data);
+
+    topology topology;
+    topology.add(input_layout("input", in_layout));
+    topology.add(cum_sum("cum_sum", input_info("input")));
+
+    const auto config = get_test_default_config(engine);
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    const auto inst = network.get_primitive("cum_sum");
+    const auto outputs = network.execute();
+
+    ASSERT_EQ(outputs.size(), size_t(1));
+    ASSERT_EQ(outputs.begin()->first, "cum_sum");
+
+    auto const output = outputs.at("cum_sum").get_memory();
+    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+
+    const auto answers = cumsum(input_data, format::bfyx, { num_items, 1, 1, 1, 1, 1 });
+
+    ASSERT_EQ(num_items, answers.size());
+    ASSERT_EQ(output->count(), answers.size());
+    for (size_t i = 0; i < answers.size(); ++i) {
+        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        std::cout << "i=" << i << ", " << answers[i] << std::endl;
+    }
+}

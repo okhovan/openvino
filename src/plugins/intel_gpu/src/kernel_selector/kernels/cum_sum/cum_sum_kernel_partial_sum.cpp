@@ -143,4 +143,24 @@ KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const o
 KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
     return FORCE_PRIORITY_7;
 }
+
+bool CumSumKernelPartialSum::Validate(const Params &params, const optional_params &o) const {
+/*
+    if (!CumSumKernelBase::Validate(params, o))
+        return false;
+    const cum_sum_params& newParams = dynamic_cast<const cum_sum_params&>(params);
+    std::vector<size_t> dims = {
+        newParams.outputs[0].Batch().v,
+        newParams.outputs[0].Feature().v,
+        newParams.outputs[0].W().v,
+        newParams.outputs[0].Z().v,
+        newParams.outputs[0].Y().v,
+        newParams.outputs[0].X().v
+    };
+    if (dims[GetRealAxisIndex(newParams)] > BLOCK_SIZE)
+        return false;
+*/
+    return true;
+}
+
 }  // namespace kernel_selector
