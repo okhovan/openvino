@@ -356,11 +356,7 @@ TEST(cum_sum, bigshape) {
     std::vector<float> input_data;
     input_data.resize(num_items);
     std::iota(input_data.begin(), input_data.end(), 1);
-/*
-    for(size_t i = 0; i < num_items; ++i) {
-        input_data.push_back(static_cast<float>(i));
-    }
-*/
+
     const tensor shape{ num_items, 1, 1, 1 };
     const layout in_layout{data_types::f32, format::bfyx, shape};
     const auto input = engine.allocate_memory(in_layout);
@@ -389,7 +385,6 @@ TEST(cum_sum, bigshape) {
     ASSERT_EQ(num_items, answers.size());
     ASSERT_EQ(output->count(), answers.size());
     for (size_t i = 0; i < answers.size(); ++i) {
-        EXPECT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
-        std::cout << "i=" << i << ", " << answers[i] << std::endl;
+        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
     }
 }

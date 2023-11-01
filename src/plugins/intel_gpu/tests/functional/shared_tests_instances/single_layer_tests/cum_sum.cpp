@@ -46,22 +46,46 @@ INSTANTIATE_TEST_SUITE_P(smoke_CumSum, CumSumLayerTest,
                         CumSumLayerTest::getTestCaseName);
 
 
-std::vector<std::vector<ov::Shape>> inShapesWithBigDims = {
+const std::vector<std::vector<ov::Shape>> inShapesWithBigDims = {
         {{32, 32}},
         {{32, 32, 32}},
         {{32, 32, 32, 32}},
-/*
+
+        {{16, 16}},
+        {{16, 16, 16}},
+        {{16, 16, 16, 16}},
+
         {{17, 17}},
         {{17, 17, 17}},
         {{17, 17, 17, 17}},
-*/
+
+        {{34, 34}},
+        {{34, 34, 34}},
+        {{34, 34, 34, 34}},
+
+        {{250, 250}},
 };
 
-INSTANTIATE_TEST_SUITE_P(smoke_CumSumWithBigDims, CumSumLayerTest,
+INSTANTIATE_TEST_SUITE_P(smoke_CumSumBigDims, CumSumLayerTest,
                         ::testing::Combine(
                                 ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesWithBigDims)),
                                 ::testing::Values(ov::element::f32),
                                 ::testing::ValuesIn(axes),
+                                ::testing::ValuesIn(exclusive),
+                                ::testing::ValuesIn(reverse),
+                                ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                        CumSumLayerTest::getTestCaseName);
+
+const std::vector<std::vector<ov::Shape>> inShapesForAllAxes = {
+        {{17, 17, 17, 17, 17, 17}},
+};
+std::vector<int64_t> allAxesForBigDims = {-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5};
+
+INSTANTIATE_TEST_SUITE_P(smoke_CumSumBigDimsAllAxes, CumSumLayerTest,
+                        ::testing::Combine(
+                                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(inShapesForAllAxes)),
+                                ::testing::Values(ov::element::f32),
+                                ::testing::ValuesIn(allAxesForBigDims),
                                 ::testing::ValuesIn(exclusive),
                                 ::testing::ValuesIn(reverse),
                                 ::testing::Values(ov::test::utils::DEVICE_GPU)),

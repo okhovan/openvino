@@ -107,8 +107,6 @@ KERNEL(cum_sum_partial_sum)(
         uint out_ind = FUNC_CALL(get_input_index)(axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]);
         if (axes[AXIS] < SUM_ITEMS_NUM)
             partial[out_ind] = TO_PARTIAL_TYPE(res[i]);
-
-        //printf("out_ind=%04i partial[]=%f\n", out_ind, partial[out_ind]);
     }
 }
 #else
@@ -126,11 +124,11 @@ inline uint FUNC(get_block_num)(int axis)
 // cum_sum_final), thus, no need to make it correct at cost of complexity and performance.
 inline uint FUNC(get_last_index_in_block)(int block)
 {
-    const int num_items = (block + 1) * BLOCK_SIZE;
+    const int num_items_in_blocks_before = (block + 1) * BLOCK_SIZE;
 #ifdef REVERSE
-    return SUM_ITEMS_NUM - num_items;
+    return SUM_ITEMS_NUM - num_items_in_blocks_before;
 #else
-    return num_items - 1;
+    return num_items_in_blocks_before - 1;
 #endif
 }
 
@@ -154,18 +152,15 @@ KERNEL(cum_sum_final)(
     PARTIAL_TYPE res = partial[ind];
 
     PARTIAL_TYPE sum = 0;
-    uint block_num = FUNC_CALL(get_block_num)(axes[AXIS]);
+    const uint current_block = FUNC_CALL(get_block_num)(axes[AXIS]);
 
-    //printf("cum_sum_final ax=%02d block_num=%02d ind=%02d res=%f\n", axes[AXIS], block_num, ind, res);
-    for (int i = 0; i < block_num; ++i) {
-        axes[AXIS] = FUNC_CALL(get_last_index_in_block)(i);
+    for (int block = 0; block < current_block; ++block) {
+        axes[AXIS] = FUNC_CALL(get_last_index_in_block)(block);
         ind = FUNC_CALL(get_input_index)(axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]);
-        //printf("ind=%04d res=%f partial[]=%f sum_before=%f\n", ind, res, partial[ind], sum);
         sum += partial[ind];
     }
 
-    uint out_ind = FUNC_CALL(get_output_index)(batch, features, w, z, y, x);
-    //printf("out_ind=%04d res=%f sum=%f\n", out_ind, res, sum);
+    const uint out_ind = FUNC_CALL(get_output_index)(batch, features, w, z, y, x);
     output[out_ind] = ACTIVATION(TO_OUTPUT_TYPE(res + sum), ACTIVATION_PARAMS);
 }
 #endif
