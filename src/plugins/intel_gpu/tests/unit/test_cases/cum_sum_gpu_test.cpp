@@ -349,7 +349,7 @@ TEST(cum_sum_gpu_fp32, dynamic) {
     }
 }
 
-TEST(cum_sum_partial, bigshapes) {
+TEST(cum_sum_partial, big_shapes) {
     auto& engine = get_test_engine();
 
     const std::vector<size_t> input_sizes = {16, 17, 34, 65, 256, 300};
@@ -418,7 +418,7 @@ double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& 
 TEST(cum_sum_partial, perf_test) {
     auto& engine = get_test_engine();
 
-    const std::vector<size_t> input_sizes = {16, 17, 34, 65, 256, 300};
+    const std::vector<size_t> input_sizes = {1, 2, 4, 8, 16, 17, 34, 48, 65, 256, 300, 515, 1025};
 
     for (const auto num_items : input_sizes) {
         std::vector<float> input_data;

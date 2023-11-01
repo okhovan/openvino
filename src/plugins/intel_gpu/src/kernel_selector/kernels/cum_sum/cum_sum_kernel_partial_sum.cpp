@@ -140,27 +140,13 @@ KernelsData CumSumKernelPartialSum::GetKernelsData(const Params& params, const o
     return GetMultiStageKernelsData(params, options);
 }
 
-KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& /*params*/, const optional_params& /*options*/) const {
-    return FORCE_PRIORITY_7;
-}
+KernelsPriority CumSumKernelPartialSum::GetKernelsPriority(const Params& params, const optional_params& /*options*/) const {
+    const auto& p = static_cast<const cum_sum_params&>(params);
+    const auto& o = p.outputs[0];
+    const std::vector<size_t> dims = {o.Batch().v, o.Feature().v, o.W().v, o.Z().v, o.Y().v, o.X().v};
 
-bool CumSumKernelPartialSum::Validate(const Params &params, const optional_params &o) const {
-/*
-    if (!CumSumKernelBase::Validate(params, o))
-        return false;
-    const cum_sum_params& newParams = dynamic_cast<const cum_sum_params&>(params);
-    std::vector<size_t> dims = {
-        newParams.outputs[0].Batch().v,
-        newParams.outputs[0].Feature().v,
-        newParams.outputs[0].W().v,
-        newParams.outputs[0].Z().v,
-        newParams.outputs[0].Y().v,
-        newParams.outputs[0].X().v
-    };
-    if (dims[GetRealAxisIndex(newParams)] > BLOCK_SIZE)
-        return false;
-*/
-    return true;
+    // cum_sum_partial works slower than cum_sum_ref on small shapes.
+    // Value "3 * BLOCK_SIZE" determined experimentally - see cum_sum_partial.perf_test in unit tests.
+    return dims[GetRealAxisIndex(p)] >= 3 * BLOCK_SIZE ? FORCE_PRIORITY_7 : DONT_USE_IF_HAVE_SOMETHING_ELSE;
 }
-
 }  // namespace kernel_selector
