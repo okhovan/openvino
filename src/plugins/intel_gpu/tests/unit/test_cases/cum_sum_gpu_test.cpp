@@ -349,42 +349,44 @@ TEST(cum_sum_gpu_fp32, dynamic) {
     }
 }
 
-TEST(cum_sum, bigshape) {
+TEST(cum_sum_partial, bigshapes) {
     auto& engine = get_test_engine();
 
-    const int num_items = 64;
-    std::vector<float> input_data;
-    input_data.resize(num_items);
-    std::iota(input_data.begin(), input_data.end(), 1);
+    const std::vector<size_t> input_sizes = {16, 17, 34, 65, 256, 300};
 
-    const tensor shape{ num_items, 1, 1, 1 };
-    const layout in_layout{data_types::f32, format::bfyx, shape};
-    const auto input = engine.allocate_memory(in_layout);
+    for (const auto num_items : input_sizes) {
+        std::vector<float> input_data;
+        input_data.resize(num_items);
+        std::iota(input_data.begin(), input_data.end(), 1);
 
-    set_values(input, input_data);
+        const auto shape_num_items = static_cast<int>(num_items);
+        const tensor shape{shape_num_items, 1, 1, 1};
+        const layout in_layout{data_types::f32, format::bfyx, shape};
+        const auto input = engine.allocate_memory(in_layout);
 
-    topology topology;
-    topology.add(input_layout("input", in_layout));
-    topology.add(cum_sum("cum_sum", input_info("input")));
+        set_values(input, input_data);
 
-    const auto config = get_test_default_config(engine);
-    network network(engine, topology, config);
-    network.set_input_data("input", input);
+        topology topology;
+        topology.add(input_layout("input", in_layout));
+        topology.add(cum_sum("cum_sum", input_info("input")));
 
-    const auto inst = network.get_primitive("cum_sum");
-    const auto outputs = network.execute();
+        const auto config = get_test_default_config(engine);
+        network network(engine, topology, config);
+        network.set_input_data("input", input);
 
-    ASSERT_EQ(outputs.size(), size_t(1));
-    ASSERT_EQ(outputs.begin()->first, "cum_sum");
+        const auto inst = network.get_primitive("cum_sum");
+        const auto outputs = network.execute();
+        ASSERT_EQ(outputs.begin()->first, "cum_sum");
 
-    auto const output = outputs.at("cum_sum").get_memory();
-    cldnn::mem_lock<float> output_ptr(output, get_test_stream());
+        const auto output = outputs.at("cum_sum").get_memory();
+        const cldnn::mem_lock<float> output_ptr(output, get_test_stream());
 
-    const auto answers = cumsum(input_data, format::bfyx, { num_items, 1, 1, 1, 1, 1 });
+        const auto expected = cumsum(input_data, format::bfyx, {shape_num_items, 1, 1, 1, 1, 1 });
 
-    ASSERT_EQ(num_items, answers.size());
-    ASSERT_EQ(output->count(), answers.size());
-    for (size_t i = 0; i < answers.size(); ++i) {
-        ASSERT_TRUE(are_equal(answers[i], output_ptr[i])) << i;
+        ASSERT_EQ(expected.size(), num_items);
+        ASSERT_EQ(output->count(), num_items);
+        for (size_t i = 0; i < num_items; ++i) {
+            ASSERT_TRUE(are_equal(expected[i], output_ptr[i])) << "num_items=" << num_items << ", i=" << i;
+        }
     }
 }
