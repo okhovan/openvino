@@ -107,6 +107,8 @@ KERNEL(cum_sum_partial_sum)(
         uint out_ind = FUNC_CALL(get_input_index)(axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]);
         if (axes[AXIS] < SUM_ITEMS_NUM)
             partial[out_ind] = TO_PARTIAL_TYPE(res[i]);
+
+        //printf("out_ind=%04i partial[]=%f\n", out_ind, partial[out_ind]);
     }
 }
 #else
@@ -119,12 +121,16 @@ inline uint FUNC(get_block_num)(int axis)
 #endif
 }
 
-inline uint FUNC(get_current_index)(int i)
+// This function works incorrect for the last block when there are leftovers (i.e. SUM_ITEMS_NUM % BLOCKSIZE != 0)
+// and REVERSE == false. But it will never be called for the last block when calculating sum of the previous blocks (see loop in
+// cum_sum_final), thus, no need to make it correct at cost of complexity and performance.
+inline uint FUNC(get_last_index_in_block)(int block)
 {
+    const int num_items = (block + 1) * BLOCK_SIZE;
 #ifdef REVERSE
-    return SUM_ITEMS_NUM - i*BLOCK_SIZE - BLOCK_SIZE;
+    return SUM_ITEMS_NUM - num_items;
 #else
-    return i*BLOCK_SIZE + BLOCK_SIZE - 1;
+    return num_items - 1;
 #endif
 }
 
@@ -149,16 +155,17 @@ KERNEL(cum_sum_final)(
 
     PARTIAL_TYPE sum = 0;
     uint block_num = FUNC_CALL(get_block_num)(axes[AXIS]);
-    int n = 4;
-    for (int i = 0; i < block_num / n; ++i) {
-        unroll_for (int j = 0; j < n; ++j) {
-            axes[AXIS] = FUNC_CALL(get_current_index)(i*n + j);
-            ind = FUNC_CALL(get_input_index)(axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]);
-            sum += partial[ind];
-        }
+
+    //printf("cum_sum_final ax=%02d block_num=%02d ind=%02d res=%f\n", axes[AXIS], block_num, ind, res);
+    for (int i = 0; i < block_num; ++i) {
+        axes[AXIS] = FUNC_CALL(get_last_index_in_block)(i);
+        ind = FUNC_CALL(get_input_index)(axes[0], axes[1], axes[2], axes[3], axes[4], axes[5]);
+        //printf("ind=%04d res=%f partial[]=%f sum_before=%f\n", ind, res, partial[ind], sum);
+        sum += partial[ind];
     }
 
     uint out_ind = FUNC_CALL(get_output_index)(batch, features, w, z, y, x);
+    //printf("out_ind=%04d res=%f sum=%f\n", out_ind, res, sum);
     output[out_ind] = ACTIVATION(TO_OUTPUT_TYPE(res + sum), ACTIVATION_PARAMS);
 }
 #endif
