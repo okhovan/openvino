@@ -393,28 +393,6 @@ TEST(cum_sum_partial, big_shapes) {
     }
 }
 
-
-namespace {
-double get_exectime(const std::map<cldnn::primitive_id, cldnn::network_output>& outputs,
-                    const std::string& primitive_id)
-{
-    using namespace std::chrono;
-    std::shared_ptr<event> e = outputs.at(primitive_id).get_event();
-    e->wait(); // should ensure execution completion, if not segfault will occur
-    double avg_time = 0.0;
-    auto intervals = e->get_profiling_info();
-    for (const auto& q : intervals)
-    {
-        if (q.stage != instrumentation::profiling_stage::executing) {
-            continue;
-        }
-        avg_time = duration_cast<duration<double, microseconds::period>>(q.value->value()).count();
-        break;
-    }
-    return avg_time;
-}
-}
-
 TEST(cum_sum_partial, perf_test) {
     auto& engine = get_test_engine();
 
@@ -468,11 +446,11 @@ TEST(cum_sum_partial, perf_test) {
         double exectime_partial = 0.f;
         for (int i = 0; i < PERFTEST_ROUNDS; ++i) {
             output_ref = network_ref.execute();
-            const auto t_ref = get_exectime(output_ref, "cum_sum");
+            const auto t_ref = get_profiling_exectime(output_ref, "cum_sum");
             exectime_ref += t_ref;
 
             output_partial = network_partial.execute();
-            const auto t_partial = get_exectime(output_partial, "cum_sum");
+            const auto t_partial = get_profiling_exectime(output_partial, "cum_sum");
             exectime_partial += t_partial;
         }
         exectime_ref /= PERFTEST_ROUNDS;
