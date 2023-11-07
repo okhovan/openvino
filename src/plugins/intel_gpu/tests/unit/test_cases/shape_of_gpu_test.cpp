@@ -242,7 +242,9 @@ TEST(shape_of_gpu_static_shape_windows_issue, bfyx) {
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
-    topology.add(shape_of("shape_of", input_info("input"), data_types::i32));
+    auto shape_prim = shape_of("shape_of", input_info("input"), data_types::i32);
+    //shape_prim.input_rank = 4;
+    topology.add(shape_prim);
 
     network network(engine, topology, get_test_default_config(engine));
 
